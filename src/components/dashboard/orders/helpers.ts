@@ -35,28 +35,32 @@ export function getStatusIcon(status: OrderPipelineRow['status']): string {
 /** Pipeline satırını API order satırına dönüştürür. */
 export function toApiOrderRow(
   row: OrderPipelineRow,
-): { orderId: string; m2: number; panelWidth: number } {
+): { orderId: string; m2: number; panelWidth: number; panelLength?: number } {
   const panelWidth = row.widthMm / 1000;
   const m2 = panelWidth * row.lengthM;
+  const panelLength = row.panelLengthM ?? 1;
   return {
     orderId: row.id,
     m2: Number(m2.toFixed(4)),
     panelWidth: Number(panelWidth.toFixed(4)),
+    panelLength: Number(panelLength),
   };
 }
 
 /** API order satırını pipeline satırına dönüştürür. */
 export function fromApiOrderRow(
-  row: { orderId?: string; m2: number; panelWidth: number },
+  row: { orderId?: string; m2: number; panelWidth: number; panelLength?: number },
   index: number,
 ): OrderPipelineRow {
   const panelWidth = Number(row.panelWidth || 0);
   const m2 = Number(row.m2 || 0);
   const lengthM = panelWidth > 0 ? m2 / panelWidth : 1;
+  const panelLengthM = Number(row.panelLength ?? 1);
   return {
     id: row.orderId?.trim() || `ORD-${new Date().getFullYear()}-${String(index + 1).padStart(3, '0')}`,
     widthMm: Math.max(1, Math.round(panelWidth * 1000)),
     lengthM: Number(lengthM.toFixed(2)),
+    panelLengthM: panelLengthM > 0 ? panelLengthM : 1,
     weightTon: Number((m2 * 0.007).toFixed(2)),
     priority: 'Medium',
     status: 'Pending',

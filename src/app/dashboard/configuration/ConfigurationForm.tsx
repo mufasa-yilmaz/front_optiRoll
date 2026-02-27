@@ -24,7 +24,7 @@ import { useOptimization } from '@/contexts/OptimizationContext';
 
 /** Başlangıçta boş veya tek örnek sipariş - kullanıcı ekleyecek */
 const INITIAL_ORDERS = [
-  { id: 'S1', m2: 100, panelWidth: 1.0 },
+  { id: 'S1', m2: 100, panelWidth: 1.0, panelLength: 1 },
 ];
 
 /**
@@ -44,7 +44,7 @@ export function ConfigurationForm() {
   const [fireCost, setFireCost] = useState(450);
   const [setupCost, setSetupCost] = useState(120);
   const [stockCost, setStockCost] = useState(2.5);
-  const [orders, setOrders] = useState<{ id: string; m2: number; panelWidth: number }[]>(INITIAL_ORDERS);
+  const [orders, setOrders] = useState<{ id: string; m2: number; panelWidth: number; panelLength?: number }[]>(INITIAL_ORDERS);
 
   const densityGcm3 = density / 1000;
   const estimatedNeedTon =
@@ -75,19 +75,19 @@ export function ConfigurationForm() {
    * Formdan geçerli sipariş satırlarını üretir.
    */
   const getValidOrders = useCallback(() => {
-    return orders.filter((o) => o.m2 > 0 && o.panelWidth > 0);
+    return orders.filter((o) => o.m2 > 0 && o.panelWidth > 0 && (o.panelLength ?? 1) > 0);
   }, [orders]);
 
   /**
    * Form alanlarından optimize isteği payload'ını oluşturur.
    */
   const buildOptimizeRequest = useCallback(
-    (validOrders: { id: string; m2: number; panelWidth: number }[]): OptimizeRequest => {
+    (validOrders: { id: string; m2: number; panelWidth: number; panelLength?: number }[]): OptimizeRequest => {
       return {
         material: { thickness, density: densityGcm3 },
         safetyStock,
         configurationId: configurationId ?? undefined,
-        orders: validOrders.map((o) => ({ m2: o.m2, panelWidth: o.panelWidth })),
+        orders: validOrders.map((o) => ({ m2: o.m2, panelWidth: o.panelWidth, panelLength: o.panelLength ?? 1 })),
         rollSettings: {
           rolls: rolls.filter((r) => r > 0),
           maxOrdersPerRoll,
@@ -147,8 +147,9 @@ export function ConfigurationForm() {
                 id: `S${idx + 1}`,
                 m2: Number(o.m2),
                 panelWidth: Number(o.panelWidth),
+                panelLength: Number((o as { panelLength?: number }).panelLength ?? 1),
               }))
-              .filter((o) => o.m2 > 0 && o.panelWidth > 0)
+              .filter((o) => o.m2 > 0 && o.panelWidth > 0 && (o.panelLength ?? 1) > 0)
           : [];
         setOrders(restoredOrders.length > 0 ? restoredOrders : INITIAL_ORDERS);
       } catch (err) {
@@ -176,8 +177,13 @@ export function ConfigurationForm() {
       const found = orderSets.find((s) => s.id === setId);
       if (!found) return;
       const mapped = (found.orders || [])
-        .map((o, idx) => ({ id: `S${idx + 1}`, m2: Number(o.m2), panelWidth: Number(o.panelWidth) }))
-        .filter((o) => o.m2 > 0 && o.panelWidth > 0);
+        .map((o, idx) => ({
+          id: `S${idx + 1}`,
+          m2: Number(o.m2),
+          panelWidth: Number(o.panelWidth),
+          panelLength: Number((o as { panelLength?: number }).panelLength ?? 1),
+        }))
+        .filter((o) => o.m2 > 0 && o.panelWidth > 0 && (o.panelLength ?? 1) > 0);
       if (mapped.length > 0) setOrders(mapped);
     },
     [orderSets],
@@ -205,7 +211,7 @@ export function ConfigurationForm() {
     }
     const validOrders = getValidOrders();
     if (validOrders.length === 0) {
-      toast.error('Geçerli sipariş bulunamadı. m² ve panel genişliği 0\'dan büyük olmalıdır.');
+      toast.error('Geçerli sipariş bulunamadı. m², panel genişliği ve panel uzunluğu 0\'dan büyük olmalıdır.');
       return;
     }
     setLoading(true);

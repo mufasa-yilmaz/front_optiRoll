@@ -7,13 +7,15 @@ export type OrderRow = {
   demandTon?: number;
   m2: number;
   panelWidth: number;
+  /** Panel kesim uzunluğu (m); bu uzunluk ve katları kesilir (örn. 3m → 3*33+1 fire) */
+  panelLength?: number;
 };
 
 /** Hazır sipariş seti (liste seçimi için) */
 export type OrderSetOption = {
   id: string;
   name: string;
-  orders?: { m2: number; panelWidth: number }[];
+  orders?: { m2: number; panelWidth: number; panelLength?: number }[];
 };
 
 export interface OrdersSummaryCardProps {
@@ -64,7 +66,7 @@ export function OrdersSummaryCard({
   const addOrder = () => {
     if (!onOrdersChange) return;
     const newId = nextOrderId(orders);
-    onOrdersChange([...orders, { id: newId, m2: 100, panelWidth: 1 }]);
+    onOrdersChange([...orders, { id: newId, m2: 100, panelWidth: 1, panelLength: 1 }]);
   };
 
   const removeOrder = (index: number) => {
@@ -72,7 +74,7 @@ export function OrdersSummaryCard({
     onOrdersChange(orders.filter((_, i) => i !== index));
   };
 
-  const updateOrder = (index: number, field: 'm2' | 'panelWidth', value: number) => {
+  const updateOrder = (index: number, field: 'm2' | 'panelWidth' | 'panelLength', value: number) => {
     if (!onOrdersChange) return;
     const next = [...orders];
     next[index] = { ...next[index], [field]: Math.max(0.01, value) };
@@ -147,6 +149,12 @@ export function OrdersSummaryCard({
                 className="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider"
                 scope="col"
               >
+                Panel Uzunluğu (m)
+              </th>
+              <th
+                className="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider"
+                scope="col"
+              >
                 Talep (ton)
               </th>
               {editable && (
@@ -157,7 +165,7 @@ export function OrdersSummaryCard({
           <tbody className="bg-white divide-y divide-slate-100">
             {orders.length === 0 ? (
               <tr>
-                <td colSpan={editable ? 5 : 4} className="px-6 py-8 text-center">
+                <td colSpan={editable ? 6 : 5} className="px-6 py-8 text-center">
                   <p className="text-sm text-slate-500">
                     {editable
                       ? 'Sipariş eklemek için "Sipariş Ekle" butonuna tıklayın'
@@ -167,7 +175,11 @@ export function OrdersSummaryCard({
               </tr>
             ) : (
               orders.map((order, i) => {
-                const demandTon = order.m2 * (thickness / 1000) * densityGcm3;
+                const pw = order.panelWidth || 1;
+                const pl = order.panelLength ?? 1;
+                const panelCount = Math.max(1, Math.round(order.m2 / (pw * pl)));
+                const effectiveM2 = panelCount * pw * pl;
+                const demandTon = effectiveM2 * (thickness / 1000) * densityGcm3;
                 return (
                   <tr
                     key={order.id}
@@ -206,6 +218,23 @@ export function OrdersSummaryCard({
                         />
                       ) : (
                         <span className="font-mono">{formatNumber(order.panelWidth)}</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-3 whitespace-nowrap text-sm text-slate-600 text-right">
+                      {editable ? (
+                        <input
+                          type="number"
+                          min={0.01}
+                          step={0.1}
+                          value={order.panelLength ?? 1}
+                          onChange={(e) =>
+                            updateOrder(i, 'panelLength', parseFloat(e.target.value) || 0.01)
+                          }
+                          className="w-20 text-right rounded border border-slate-300 py-1.5 px-2 text-sm font-mono"
+                          title="Kesim uzunluğu (m); bu uzunluk ve katları kesilir"
+                        />
+                      ) : (
+                        <span className="font-mono">{formatNumber(order.panelLength ?? 1)}</span>
                       )}
                     </td>
                     <td className="px-6 py-3 whitespace-nowrap text-sm text-slate-600 text-right font-mono">

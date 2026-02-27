@@ -129,7 +129,7 @@ export function ProjectCreateModal({
                   placeholder="Örn: ORD-2024-X42"
                 />
               </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-5">
                 <input
                   type="number"
                   value={newOrder.widthMm}
@@ -143,6 +143,16 @@ export function ProjectCreateModal({
                   onChange={(event) => onNewOrderChange((prev) => ({ ...prev, lengthM: Number(event.target.value) }))}
                   className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm"
                   placeholder="Uzunluk (m)"
+                />
+                <input
+                  type="number"
+                  min={0.01}
+                  step={0.1}
+                  value={newOrder.panelLengthM ?? 1}
+                  onChange={(event) => onNewOrderChange((prev) => ({ ...prev, panelLengthM: Number(event.target.value) || 1 }))}
+                  className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm"
+                  placeholder="Panel uzunluğu (m)"
+                  title="Kesim uzunluğu"
                 />
                 <input
                   type="number"
@@ -198,7 +208,12 @@ export function ProjectCreateModal({
                   rows.map((row, index) => (
                     <tr key={`${row.id}-${index}`}>
                       <td className="px-6 py-4 font-bold text-slate-900">{row.id}</td>
-                      <td className="px-6 py-4 text-sm text-slate-600">{row.widthMm} x {row.lengthM} m</td>
+                      <td className="px-6 py-4 text-sm text-slate-600">
+                        {row.widthMm} × {row.lengthM} m
+                        {(row.panelLengthM ?? 1) !== 1 && (
+                          <span className="ml-1 text-slate-500">(kesim: {row.panelLengthM} m)</span>
+                        )}
+                      </td>
                       <td className="px-6 py-4 text-center text-sm">{row.weightTon.toFixed(2)} t</td>
                       <td className="px-6 py-4 text-center">
                         <span className={`rounded px-2 py-0.5 text-[10px] font-black uppercase ${getPriorityBadge(row.priority)}`}>

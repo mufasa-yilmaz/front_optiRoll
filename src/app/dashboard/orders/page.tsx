@@ -25,6 +25,7 @@ export default function OrdersPage() {
     id: '',
     widthMm: 1250,
     lengthM: 6,
+    panelLengthM: 1,
     weightTon: 2.5,
     priority: 'Medium',
   });
@@ -68,6 +69,7 @@ export default function OrdersPage() {
       id: '',
       widthMm: 1250,
       lengthM: 6,
+      panelLengthM: 1,
       weightTon: 2.5,
       priority: 'Medium',
     });
@@ -89,10 +91,12 @@ export default function OrdersPage() {
     const weightTon = Math.max(0.01, Number(newOrder.weightTon) || 0.01);
     const fallbackId = `ORD-${new Date().getFullYear()}-${String(rows.length + 1).padStart(3, '0')}`;
     const id = newOrder.id.trim() || fallbackId;
+    const panelLengthM = Math.max(0.01, Number(newOrder.panelLengthM) || 1);
     const candidate: OrderPipelineRow = {
       id,
       widthMm,
       lengthM,
+      panelLengthM,
       weightTon,
       priority: newOrder.priority,
       status: 'Pending',
@@ -238,6 +242,7 @@ export default function OrdersPage() {
       id: target.id,
       widthMm: target.widthMm,
       lengthM: target.lengthM,
+      panelLengthM: target.panelLengthM ?? 1,
       weightTon: target.weightTon,
       priority: target.priority,
     });
@@ -278,6 +283,7 @@ export default function OrdersPage() {
       id: target.id,
       widthMm: target.widthMm,
       lengthM: target.lengthM,
+      panelLengthM: target.panelLengthM ?? 1,
       weightTon: target.weightTon,
       priority: target.priority,
     });

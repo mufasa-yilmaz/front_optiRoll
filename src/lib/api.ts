@@ -15,6 +15,8 @@ export interface OrderInput {
   orderId?: string;
   m2: number;
   panelWidth: number;
+  /** Panel kesim uzunluğu (m); bu uzunluk ve katları kesilir (örn. 3m → 3*33+1 fire). Varsayılan 1. */
+  panelLength?: number;
 }
 
 export interface RollSettingsInput {
@@ -57,6 +59,7 @@ export interface CuttingPlanItem {
   orderId: number;
   panelCount: number;
   panelWidth: number;
+  panelLength?: number;
   tonnage: number;
   m2: number;
 }

@@ -49,7 +49,24 @@ export function OrderCreateFormCard({
               value={newOrder.lengthM}
               onChange={(event) => onNewOrderChange((prev) => ({ ...prev, lengthM: Number(event.target.value) }))}
               className="w-full rounded-lg border border-slate-200 p-2.5 text-sm"
+              title="Toplam şerit uzunluğu (m)"
             />
+          </div>
+          <div className="col-span-2">
+            <label className="mb-1 block text-sm font-semibold text-slate-700">Panel uzunluğu (m)</label>
+            <input
+              type="number"
+              min={0.01}
+              step={0.1}
+              value={newOrder.panelLengthM ?? 1}
+              onChange={(event) => onNewOrderChange((prev) => ({ ...prev, panelLengthM: Number(event.target.value) || 1 }))}
+              className="w-full rounded-lg border border-slate-200 p-2.5 text-sm"
+              placeholder="1"
+              title="Kesim uzunluğu; bu uzunluk ve katları kesilir (örn. 3m → 3*33+1 fire)"
+            />
+            <p className="mt-1 text-xs text-slate-500">
+              Bu uzunluk ve katları şeklinde kesilir (örn. 100 m² rulo 3 m ile → 33 adet 3 m + 1 m fire).
+            </p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">

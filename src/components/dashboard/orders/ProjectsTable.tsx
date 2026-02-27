@@ -1,5 +1,5 @@
 import type { SavedOrderSet } from '@/lib/api';
-import { formatOrderSetDate, getProjectProgress } from './helpers';
+import { formatOrderSetDate, fromApiOrderRow, getProjectProgress } from './helpers';
 import { getPriorityBadge, getStatusIcon, getStatusTextClass } from './helpers';
 import type { OrderPipelineRow } from './types';
 
@@ -113,23 +113,10 @@ function FragmentRow({
 }: FragmentRowProps) {
   /** API sipariş satırını pipeline satır modeline dönüştürür. */
   function toPipelineRow(
-    order: { orderId?: string; m2: number; panelWidth: number },
+    order: { orderId?: string; m2: number; panelWidth: number; panelLength?: number },
     index: number,
   ): OrderPipelineRow {
-    const m2 = Number(order.m2 || 0);
-    const widthMm = Math.max(1, Math.round(Number(order.panelWidth || 0) * 1000));
-    const lengthM = Number(order.panelWidth || 0) > 0 ? m2 / Number(order.panelWidth) : 1;
-    const priorities: OrderPipelineRow['priority'][] = ['Low', 'Medium', 'High', 'Urgent'];
-    const priority = priorities[index % priorities.length];
-    const status: OrderPipelineRow['status'] = m2 > 6 ? 'In Production' : m2 > 2 ? 'Optimized' : 'Pending';
-    return {
-      id: order.orderId?.trim() || `ORD-${String(index + 1).padStart(3, '0')}`,
-      widthMm,
-      lengthM: Number(lengthM.toFixed(2)),
-      weightTon: Number((m2 * 0.007).toFixed(2)),
-      priority,
-      status,
-    };
+    return fromApiOrderRow(order, index);
   }
 
   return (
@@ -182,7 +169,12 @@ function FragmentRow({
                       return (
                         <tr key={`${setItem.id}-${orderIdx}`} className="hover:bg-slate-50/50 transition-colors">
                           <td className="px-6 py-4 font-bold text-slate-900">{row.id}</td>
-                          <td className="px-6 py-4 text-sm text-slate-600">{row.widthMm} x {row.lengthM} m</td>
+                          <td className="px-6 py-4 text-sm text-slate-600">
+                            {row.widthMm} × {row.lengthM} m
+                            {(row.panelLengthM ?? 1) !== 1 && (
+                              <span className="ml-1 text-slate-500">(kesim: {row.panelLengthM} m)</span>
+                            )}
+                          </td>
                           <td className="px-6 py-4 text-sm text-center">{row.weightTon.toFixed(2)} t</td>
                           <td className="px-6 py-4 text-center">
                             <span className={`rounded px-2 py-0.5 text-[10px] font-black uppercase ${getPriorityBadge(row.priority)}`}>
