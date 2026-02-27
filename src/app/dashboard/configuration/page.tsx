@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { ConfigurationForm } from './ConfigurationForm';
 
 export const metadata: Metadata = {
@@ -22,7 +23,9 @@ export default function ConfigurationPage() {
         </p>
       </div>
       <main className="flex-grow container mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 py-6">
-        <ConfigurationForm />
+        <Suspense fallback={<div className="text-sm text-gray-500">Konfigürasyon yükleniyor...</div>}>
+          <ConfigurationForm />
+        </Suspense>
       </main>
     </div>
   );

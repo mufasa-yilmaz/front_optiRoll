@@ -11,6 +11,8 @@ export interface MaterialInput {
 }
 
 export interface OrderInput {
+  /** Siparişin kullanıcı dostu/kaydedilen kimliği (opsiyonel). */
+  orderId?: string;
   m2: number;
   panelWidth: number;
 }
@@ -39,6 +41,8 @@ export interface OptimizeRequest {
   orders: OrderInput[];
   rollSettings: RollSettingsInput;
   costs: CostsInput;
+  safetyStock?: number;
+  configurationId?: string;
 }
 
 export interface SummaryResponse {
@@ -74,6 +78,8 @@ export interface OptimizeResponse {
   cuttingPlan: CuttingPlanItem[];
   rollStatus: RollStatusItem[];
   fileId: string;
+  configurationId?: string | null;
+  inputData?: OptimizeRequest;
   /** Supabase Storage'daki rapor URL'i (geçmiş sonuçlar için) */
   reportUrl?: string;
 }
@@ -83,6 +89,55 @@ export interface ValidateResponse {
   errors: string[];
   warnings: string[];
   totalTonnageNeeded?: number;
+}
+
+export interface ConfigurationSaveRequest {
+  configurationId?: string;
+  name?: string;
+  material: MaterialInput;
+  safetyStock: number;
+  orders: OrderInput[];
+  rollSettings: RollSettingsInput;
+  costs: CostsInput;
+}
+
+export interface ConfigurationSaveResponse {
+  configurationId: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface SavedConfiguration {
+  id: string;
+  name?: string;
+  material_thickness: number;
+  material_density: number;
+  safety_stock: number;
+  max_orders_per_roll: number;
+  max_rolls_per_order: number;
+  fire_cost: number;
+  setup_cost: number;
+  stock_cost: number;
+  rolls: number[];
+  orders: OrderInput[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface SavedOrderSet {
+  id: string;
+  name: string;
+  orders: OrderInput[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface SavedStockSet {
+  id: string;
+  name: string;
+  rolls: number[];
+  created_at?: string;
+  updated_at?: string;
 }
 
 /**
@@ -136,6 +191,27 @@ export async function validate(data: OptimizeRequest): Promise<ValidateResponse>
 }
 
 /**
+ * Konfigürasyonu kaydeder veya günceller.
+ * @param data - ConfigurationSaveRequest
+ * @returns ConfigurationSaveResponse
+ */
+export async function saveConfiguration(
+  data: ConfigurationSaveRequest,
+): Promise<ConfigurationSaveResponse> {
+  const url = `${API_BASE}/api/configurations`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Konfigürasyon kaydı başarısız' }));
+    throw new Error(err.detail || 'Konfigürasyon kaydı başarısız');
+  }
+  return res.json();
+}
+
+/**
  * Excel rapor dosyasının indirme URL'ini döndürür.
  * @param fileId - Backend'in döndürdüğü fileId
  */
@@ -179,4 +255,123 @@ export async function getRun(fileId: string): Promise<RunDetail> {
     throw new Error('Detay yüklenemedi');
   }
   return res.json();
+}
+
+/**
+ * Geçmiş çalıştırma kaydını fileId ile siler.
+ */
+export async function deleteRun(fileId: string): Promise<void> {
+  const url = `${API_BASE}/api/runs/${fileId}`;
+  const res = await fetch(url, { method: 'DELETE' });
+  if (!res.ok) {
+    if (res.status === 404) throw new Error('Çalıştırma bulunamadı');
+    const err = await res.json().catch(() => ({ detail: 'Silme işlemi başarısız' }));
+    throw new Error(err.detail || 'Silme işlemi başarısız');
+  }
+}
+
+/**
+ * Kayıtlı bir konfigürasyonu ID ile getirir.
+ */
+export async function getConfigurationById(configurationId: string): Promise<SavedConfiguration> {
+  const url = `${API_BASE}/api/configurations/${configurationId}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    if (res.status === 404) throw new Error('Konfigürasyon bulunamadı');
+    throw new Error('Konfigürasyon yüklenemedi');
+  }
+  return res.json();
+}
+
+/**
+ * Sonuç çalıştırmasının girdilerinden konfigürasyon kaydı üretir/günceller.
+ */
+export async function saveRunConfiguration(fileId: string): Promise<ConfigurationSaveResponse> {
+  const url = `${API_BASE}/api/runs/${fileId}/save-configuration`;
+  const res = await fetch(url, { method: 'POST' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Konfigürasyon kaydı başarısız' }));
+    throw new Error(err.detail || 'Konfigürasyon kaydı başarısız');
+  }
+  return res.json();
+}
+
+/**
+ * Kayıtlı sipariş setlerini listeler.
+ */
+export async function getOrderSets(): Promise<{ orderSets: SavedOrderSet[] }> {
+  const url = `${API_BASE}/api/order-sets`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Sipariş setleri yüklenemedi');
+  return res.json();
+}
+
+/**
+ * Yeni sipariş seti kaydeder.
+ */
+export async function saveOrderSet(
+  name: string,
+  orders: OrderInput[],
+  setId?: string,
+): Promise<SavedOrderSet> {
+  const url = `${API_BASE}/api/order-sets`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: setId, name, orders }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Sipariş seti kaydedilemedi' }));
+    throw new Error(err.detail || 'Sipariş seti kaydedilemedi');
+  }
+  return res.json();
+}
+
+/**
+ * Sipariş setini siler.
+ */
+export async function deleteOrderSet(setId: string): Promise<void> {
+  const url = `${API_BASE}/api/order-sets/${setId}`;
+  const res = await fetch(url, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Sipariş seti silinemedi');
+}
+
+/**
+ * Kayıtlı stok setlerini listeler.
+ */
+export async function getStockSets(): Promise<{ stockSets: SavedStockSet[] }> {
+  const url = `${API_BASE}/api/stock-sets`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Stok setleri yüklenemedi');
+  return res.json();
+}
+
+/**
+ * Yeni stok/rulo seti kaydeder.
+ */
+export async function saveStockSet(
+  name: string,
+  rolls: number[],
+  setId?: string,
+): Promise<SavedStockSet> {
+  const url = `${API_BASE}/api/stock-sets`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: setId, name, rolls }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Stok seti kaydedilemedi' }));
+    throw new Error(err.detail || 'Stok seti kaydedilemedi');
+  }
+  return res.json();
+}
+
+/**
+ * Stok/rulo setini siler.
+ */
+export async function deleteStockSet(setId: string): Promise<void> {
+  const url = `${API_BASE}/api/stock-sets/${setId}`;
+  const res = await fetch(url, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Stok seti silinemedi');
 }

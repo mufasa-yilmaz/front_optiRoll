@@ -7,6 +7,8 @@ import { usePathname, useRouter } from 'next/navigation';
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
   { href: '/dashboard/configuration', label: 'Konfigürasyon', icon: 'tune' },
+  { href: '/dashboard/orders', label: 'Sipariş Setleri', icon: 'list_alt' },
+  { href: '/dashboard/stocks', label: 'Stok Setleri', icon: 'inventory_2' },
   { href: '/dashboard/sonuc', label: 'Sonuçlar', icon: 'analytics' },
   { href: '/dashboard/kesim-karsilastirma', label: 'Kesim Karşılaştırması', icon: 'compare' },
 ] as const;

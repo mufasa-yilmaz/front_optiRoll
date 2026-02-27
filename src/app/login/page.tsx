@@ -4,6 +4,7 @@ import { Suspense, useState } from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { DEMO_CREDENTIALS, validateCredentials } from '@/lib/auth';
 
 /**
@@ -35,16 +36,14 @@ function LoginContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError('');
     setLoading(true);
 
     if (!validateCredentials(email, password)) {
-      setError('E-posta veya şifre hatalı. Demo: demo@optiroll.com / demo123');
+      toast.error('E-posta veya şifre hatalı. Demo: demo@optiroll.com / demo123');
       setLoading(false);
       return;
     }
@@ -57,7 +56,7 @@ function LoginContent() {
       });
 
       if (!res.ok) {
-        setError('Giriş yapılamadı. Lütfen tekrar deneyin.');
+        toast.error('Giriş yapılamadı. Lütfen tekrar deneyin.');
         setLoading(false);
         return;
       }
@@ -65,7 +64,7 @@ function LoginContent() {
       router.push(redirect);
       router.refresh();
     } catch {
-      setError('Bir hata oluştu. Lütfen tekrar deneyin.');
+      toast.error('Bir hata oluştu. Lütfen tekrar deneyin.');
     } finally {
       setLoading(false);
     }
@@ -137,12 +136,6 @@ function LoginContent() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6" method="POST">
-            {error && (
-              <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-                {error}
-              </div>
-            )}
-
             <div>
               <label
                 className="block text-sm font-semibold text-gray-700 mb-2"

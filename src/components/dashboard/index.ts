@@ -10,6 +10,7 @@ export { PatternBreakdownTable } from './PatternBreakdownTable';
 export { SolverResultsHeader } from './SolverResultsHeader';
 export { SonucEmptyBanner } from './SonucEmptyBanner';
 export { RuloSiparisKullanimChart } from './RuloSiparisKullanimChart';
+export { SolverBreakdownTabs } from './SolverBreakdownTabs';
 export { SolverStatusCards } from './SolverStatusCards';
 export { SolverDetailedSummary } from './SolverDetailedSummary';
 export { ConfigurationHeader } from './ConfigurationHeader';

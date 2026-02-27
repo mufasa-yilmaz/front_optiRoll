@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Space_Grotesk, Noto_Sans } from 'next/font/google';
 import { LayoutWrapper } from '@/components/LayoutWrapper';
+import { ToastProvider } from '@/components/ToastProvider';
 import { OptimizationProvider } from '@/contexts/OptimizationContext';
 import './globals.css';
 
@@ -33,6 +34,7 @@ export default function RootLayout({
     <html lang="tr" className={`${spaceGrotesk.variable} ${notoSans.variable} light`}>
       <body className="min-h-screen antialiased font-sans bg-background-light dark:bg-background-dark text-[#101418] dark:text-gray-100">
         <OptimizationProvider>
+          <ToastProvider />
           <LayoutWrapper>{children}</LayoutWrapper>
         </OptimizationProvider>
       </body>

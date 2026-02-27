@@ -8,6 +8,7 @@ import {
   SolverStatusCards,
   SolverDetailedSummary,
   RuloSiparisKullanimChart,
+  SolverBreakdownTabs,
 } from '@/components/dashboard';
 import { useOptimization } from '@/contexts/OptimizationContext';
 import { ResultViewProvider } from '@/contexts/ResultViewContext';
@@ -93,6 +94,7 @@ export default function SonucDetailPage() {
           <SolverStatusCards />
           <RuloSiparisKullanimChart />
           <SolverDetailedSummary />
+          <SolverBreakdownTabs />
         </div>
       </main>
     </ResultViewProvider>

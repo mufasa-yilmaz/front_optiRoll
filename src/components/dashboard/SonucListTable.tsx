@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getRuns, type RunSummary } from '@/lib/api';
+import { toast } from 'sonner';
+import { deleteRun, getRuns, type RunSummary } from '@/lib/api';
 
 const formatTL = (n: number) =>
   n.toLocaleString('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -29,12 +30,47 @@ export function SonucListTable() {
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
 
-  useEffect(() => {
+  /**
+   * Sonuç listesini API'den yükler.
+   */
+  const loadRuns = () => {
+    setLoading(true);
+    setError(null);
     getRuns()
       .then(({ runs: data }) => setRuns(data))
-      .catch((e) => setError(e instanceof Error ? e.message : 'Yüklenemedi'))
+      .catch((e) => {
+        const message = e instanceof Error ? e.message : 'Yüklenemedi';
+        setError(message);
+        toast.error(message);
+      })
       .finally(() => setLoading(false));
+  };
+
+  /**
+   * Seçili sonucu siler ve tabloyu günceller.
+   */
+  const handleDeleteRun = async (fileId: string) => {
+    const confirmed = window.confirm(`Çalıştırma #${fileId} silinsin mi? Bu işlem geri alınamaz.`);
+    if (!confirmed) return;
+
+    try {
+      setDeletingFileId(fileId);
+      await deleteRun(fileId);
+      setRuns((prev) => prev.filter((r) => r.file_id !== fileId));
+      toast.success('Sonuç kaydı silindi.');
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Silme işlemi başarısız';
+      setError(message);
+      toast.error(message);
+    } finally {
+      setDeletingFileId(null);
+    }
+  };
+
+  useEffect(() => {
+    loadRuns();
   }, []);
 
   if (loading) {
@@ -111,7 +147,7 @@ export function SonucListTable() {
                 Açılan Rulo
               </th>
               <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">
-                Detay
+                İşlemler
               </th>
             </tr>
           </thead>
@@ -142,13 +178,26 @@ export function SonucListTable() {
                   {run.summary?.openedRolls ?? '-'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-center">
-                  <Link
-                    href={`/dashboard/sonuc/${run.file_id}`}
-                    className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-secondary"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">visibility</span>
-                    Görüntüle
-                  </Link>
+                  <div className="inline-flex items-center gap-3">
+                    <Link
+                      href={`/dashboard/sonuc/${run.file_id}`}
+                      className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-secondary"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">visibility</span>
+                      Görüntüle
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteRun(run.file_id)}
+                      disabled={deletingFileId === run.file_id}
+                      className="inline-flex items-center gap-1 text-sm font-medium text-red-600 hover:text-red-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      <span className={`material-symbols-outlined text-[18px] ${deletingFileId === run.file_id ? 'animate-spin' : ''}`}>
+                        {deletingFileId === run.file_id ? 'progress_activity' : 'delete'}
+                      </span>
+                      {deletingFileId === run.file_id ? 'Siliniyor...' : 'Sil'}
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
