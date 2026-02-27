@@ -151,8 +151,19 @@ export interface SavedStockSet {
 /** API isteği timeout (2 dakika) */
 const OPTIMIZE_TIMEOUT_MS = 2 * 60 * 1000;
 
+/** Backend JSON hata cevabından mesaj metnini çıkarır (detail string veya string[]). */
+function getErrorMessage(err: { detail?: string | string[] }, fallback: string): string {
+  const d = err?.detail;
+  if (Array.isArray(d)) return d.length ? d.join('. ') : fallback;
+  if (typeof d === 'string' && d.trim()) return d;
+  return fallback;
+}
+
 export async function optimize(data: OptimizeRequest): Promise<OptimizeResponse> {
   const url = `${API_BASE}/api/optimize`;
+  if (!API_BASE) {
+    throw new Error('API adresi tanımlı değil. .env içinde NEXT_PUBLIC_API_URL ayarlayın (örn. https://optiroll-back-fastapi-production.up.railway.app)');
+  }
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), OPTIMIZE_TIMEOUT_MS);
   try {
@@ -165,13 +176,16 @@ export async function optimize(data: OptimizeRequest): Promise<OptimizeResponse>
     clearTimeout(timeoutId);
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: res.statusText }));
-      throw new Error(err.detail || Array.isArray(err.detail) ? err.detail.join(', ') : 'Optimizasyon hatası');
+      throw new Error(getErrorMessage(err, 'Optimizasyon hatası'));
     }
     return res.json();
   } catch (e) {
     clearTimeout(timeoutId);
     if (e instanceof Error && e.name === 'AbortError') {
       throw new Error('Hesaplama zaman aşımına uğradı (2 dk). Lütfen tekrar deneyin.');
+    }
+    if (e instanceof TypeError && (e.message === 'Failed to fetch' || e.message.includes('fetch'))) {
+      throw new Error(`Backend'e bağlanılamadı. API URL: ${API_BASE} — CORS veya adres kontrol edin.`);
     }
     throw e;
   }
