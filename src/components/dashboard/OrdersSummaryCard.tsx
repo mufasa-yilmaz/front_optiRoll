@@ -9,6 +9,13 @@ export type OrderRow = {
   panelWidth: number;
 };
 
+/** Hazır sipariş seti (liste seçimi için) */
+export type OrderSetOption = {
+  id: string;
+  name: string;
+  orders?: { m2: number; panelWidth: number }[];
+};
+
 export interface OrdersSummaryCardProps {
   /** Sipariş listesi */
   orders: OrderRow[];
@@ -18,6 +25,12 @@ export interface OrdersSummaryCardProps {
   thickness?: number;
   /** Talep (ton) hesaplaması için yoğunluk (kg/m³) - opsiyonel */
   density?: number;
+  /** Hazır sipariş setleri - verilirse Siparişler bölümünde dropdown gösterilir */
+  orderSets?: OrderSetOption[];
+  /** Seçili hazır sipariş seti id */
+  selectedOrderSetId?: string;
+  /** Hazır sipariş seti seçildiğinde çağrılır */
+  onOrderSetSelect?: (setId: string) => void;
 }
 
 /** Benzersiz sipariş ID üretir */
@@ -38,11 +51,15 @@ export function OrdersSummaryCard({
   onOrdersChange,
   thickness = 0.75,
   density = 7850,
+  orderSets = [],
+  selectedOrderSetId = '',
+  onOrderSetSelect,
 }: OrdersSummaryCardProps) {
   const formatNumber = (n: number, decimals = 2) =>
     n.toLocaleString('tr-TR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 
   const densityGcm3 = density / 1000;
+  const showOrderSetSelect = orderSets.length > 0 && onOrderSetSelect;
 
   const addOrder = () => {
     if (!onOrdersChange) return;
@@ -69,22 +86,39 @@ export function OrdersSummaryCard({
       className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex-grow flex flex-col min-h-[300px] transition-shadow hover:shadow-md duration-300 animate-fade-in-up [animation-fill-mode:both]"
       style={{ animationDelay: '200ms' }}
     >
-      <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-third/50">
-        <h2 className="text-lg font-bold text-primary font-display">Siparişler</h2>
-        <div className="flex gap-3 items-center">
-          <span className="text-xs font-medium text-slate-400">
-            {orders.length} sipariş
-          </span>
-          {editable && (
-            <button
-              type="button"
-              onClick={addOrder}
-              className="text-xs font-bold text-secondary hover:text-primary flex items-center gap-1 transition-colors"
-            >
-              <span className="material-symbols-outlined text-base">add</span>
-              Sipariş Ekle
-            </button>
-          )}
+      <div className="px-6 py-4 border-b border-slate-100 bg-third/50">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <h2 className="text-lg font-bold text-primary font-display">Siparişler</h2>
+          <div className="flex gap-3 items-center flex-wrap">
+            <span className="text-xs font-medium text-slate-400">
+              {orders.length} sipariş
+            </span>
+            {showOrderSetSelect && (
+              <select
+                value={selectedOrderSetId}
+                onChange={(e) => onOrderSetSelect(e.target.value)}
+                className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white focus:border-secondary focus:ring-1 focus:ring-secondary/30"
+                title="Hazır sipariş seti seç"
+              >
+                <option value="">Hazır Sipariş Seti Seç</option>
+                {orderSets.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({(s.orders || []).length} sipariş)
+                  </option>
+                ))}
+              </select>
+            )}
+            {editable && (
+              <button
+                type="button"
+                onClick={addOrder}
+                className="text-xs font-bold text-secondary hover:text-primary flex items-center gap-1 transition-colors"
+              >
+                <span className="material-symbols-outlined text-base">add</span>
+                Sipariş Ekle
+              </button>
+            )}
+          </div>
         </div>
       </div>
       <div className="overflow-x-auto flex-1">

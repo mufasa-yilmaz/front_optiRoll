@@ -2,22 +2,39 @@
 
 import { DashboardCard } from './DashboardCard';
 
+/** Hazır stok seti (liste seçimi için) */
+export type StockSetOption = {
+  id: string;
+  name: string;
+  rolls?: number[];
+};
+
 export interface RollSettingsCardProps {
   rolls: number[];
   onRollsChange: (rolls: number[]) => void;
   /** Tahmini ihtiyaç (ton) - gösterim için */
   estimatedNeedTon?: number;
+  /** Hazır stok setleri - verilirse Rulo Stoku bölümünde dropdown gösterilir */
+  stockSets?: StockSetOption[];
+  /** Seçili hazır stok seti id */
+  selectedStockSetId?: string;
+  /** Hazır stok seti seçildiğinde çağrılır */
+  onStockSetSelect?: (setId: string) => void;
 }
 
 /**
- * Rulo stoku kartı: her rulonun ağırlığını manuel giriş.
+ * Rulo stoku kartı: her rulonun ağırlığını manuel giriş; isteğe bağlı hazır stok seti seçimi.
  */
 export function RollSettingsCard({
   rolls,
   onRollsChange,
   estimatedNeedTon,
+  stockSets = [],
+  selectedStockSetId = '',
+  onStockSetSelect,
 }: RollSettingsCardProps) {
   const total = rolls.reduce((s, r) => s + r, 0);
+  const showStockSetSelect = stockSets.length > 0 && onStockSetSelect;
 
   const addRoll = () => onRollsChange([...rolls, 5]);
   const removeRoll = (i: number) => onRollsChange(rolls.filter((_, idx) => idx !== i));
@@ -27,22 +44,43 @@ export function RollSettingsCard({
     onRollsChange(next);
   };
 
+  const headerRight = (
+    <div className="flex gap-3 items-center flex-wrap">
+      <span className="text-xs font-medium text-slate-400">
+        {rolls.length} rulo
+      </span>
+      {showStockSetSelect && (
+        <select
+          value={selectedStockSetId}
+          onChange={(e) => onStockSetSelect(e.target.value)}
+          className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white focus:border-secondary focus:ring-1 focus:ring-secondary/30"
+          title="Hazır stok seti seç"
+        >
+          <option value="">Hazır Stok Seti Seç</option>
+          {stockSets.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name} ({(s.rolls || []).length} rulo)
+            </option>
+          ))}
+        </select>
+      )}
+      <button
+        type="button"
+        onClick={addRoll}
+        className="text-xs font-bold text-secondary hover:text-primary flex items-center gap-1 transition-colors"
+      >
+        <span className="material-symbols-outlined text-base">add</span>
+        Rulo Ekle
+      </button>
+    </div>
+  );
+
   return (
-    <DashboardCard title="Rulo Stoku" icon="inventory_2" animationDelayMs={75}>
+    <DashboardCard title="Rulo Stoku" icon="inventory_2" animationDelayMs={75} headerRight={headerRight}>
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <label className="text-xs font-medium text-slate-600">
-            Rulo Ağırlıkları (ton)
-          </label>
-          <button
-            type="button"
-            onClick={addRoll}
-            className="text-xs font-bold text-secondary hover:text-primary flex items-center gap-1"
-          >
-            <span className="material-symbols-outlined text-base">add</span>
-            Rulo Ekle
-          </button>
-        </div>
+        <label className="block text-xs font-medium text-slate-600">
+          Rulo Ağırlıkları (ton)
+        </label>
         <div className="space-y-2 max-h-48 overflow-y-auto">
           {rolls.length === 0 ? (
             <p className="text-sm text-slate-500 py-4 text-center">

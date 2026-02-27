@@ -246,40 +246,6 @@ export function ConfigurationForm() {
           </div>
         </div>
       )}
-      <div className="mb-4 rounded-xl border border-slate-200 bg-white px-4 py-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-2">Hazır Sipariş Seti Seç</label>
-            <select
-              value={selectedOrderSetId}
-              onChange={(e) => applyOrderSet(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            >
-              <option value="">Seçme (manuel girişe devam)</option>
-              {orderSets.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} ({(s.orders || []).length} sipariş)
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-2">Hazır Stok Seti Seç</label>
-            <select
-              value={selectedStockSetId}
-              onChange={(e) => applyStockSet(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            >
-              <option value="">Seçme (manuel girişe devam)</option>
-              {stockSets.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} ({(s.rolls || []).length} rulo)
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         <aside className="lg:col-span-4 space-y-6">
           <MaterialPropertiesCard
@@ -296,11 +262,6 @@ export function ConfigurationForm() {
             maxRollsPerOrder={maxRollsPerOrder}
             onMaxRollsPerOrderChange={setMaxRollsPerOrder}
           />
-          <RollSettingsCard
-            rolls={rolls}
-            onRollsChange={setRolls}
-            estimatedNeedTon={estimatedNeedTon}
-          />
         </aside>
         <div className="lg:col-span-8 flex flex-col gap-6">
           <CostParametersCard
@@ -311,11 +272,22 @@ export function ConfigurationForm() {
             stockCost={stockCost}
             onStockCostChange={setStockCost}
           />
+          <RollSettingsCard
+            rolls={rolls}
+            onRollsChange={setRolls}
+            estimatedNeedTon={estimatedNeedTon}
+            stockSets={stockSets}
+            selectedStockSetId={selectedStockSetId}
+            onStockSetSelect={applyStockSet}
+          />
           <OrdersSummaryCard
             orders={orders}
             onOrdersChange={setOrders}
             thickness={thickness}
             density={density}
+            orderSets={orderSets}
+            selectedOrderSetId={selectedOrderSetId}
+            onOrderSetSelect={applyOrderSet}
           />
         </div>
       </div>
