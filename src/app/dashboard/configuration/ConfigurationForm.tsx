@@ -264,7 +264,7 @@ export function ConfigurationForm() {
     try {
       const request = buildOptimizeRequest(validOrders);
       const minDelayMs = 10000;
-      const maxDelayMs = 20000;
+      const maxDelayMs = 14000;
       const startTime = performance.now();
       const result = await optimize(request);
       const targetTotal =
@@ -304,7 +304,7 @@ export function ConfigurationForm() {
             <p className="text-lg font-semibold text-slate-700 animate-pulse">
               {LOADING_STEPS[loadingStep]}
             </p>
-            <p className="text-sm text-slate-500">Bu işlem 10–20 saniye sürebilir</p>
+            <p className="text-sm text-slate-500">Bu işlem 10–14 saniye sürebilir</p>
           </div>
         </div>
       )}
