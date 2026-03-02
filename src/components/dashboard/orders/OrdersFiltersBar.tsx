@@ -16,7 +16,7 @@ export function OrdersFiltersBar({ value, onChange }: OrdersFiltersBarProps) {
             value={value}
             onChange={(event) => onChange(event.target.value)}
             className="w-full rounded-lg border border-slate-200 bg-slate-50 pl-10 text-sm"
-            placeholder="Filter by project ID, set name or date..."
+            placeholder="Proje kodu, set adı veya tarihe göre ara..."
             type="text"
           />
         </div>
@@ -27,14 +27,14 @@ export function OrdersFiltersBar({ value, onChange }: OrdersFiltersBarProps) {
           className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-semibold"
         >
           <span className="material-symbols-outlined text-lg">filter_list</span>
-          Status: All
+          Durum: Tümü
         </button>
         <button
           type="button"
           className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-semibold"
         >
           <span className="material-symbols-outlined text-lg">calendar_today</span>
-          Date Range
+          Tarih Aralığı
         </button>
       </div>
     </div>

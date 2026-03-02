@@ -68,7 +68,7 @@ function CutDiagramBar({ segments }: { segments: PatternSegment[] }) {
             seg.label ? 'text-white font-bold border-r border-white/20' : ''
           }`}
           style={{ width: seg.width }}
-          title={seg.label || 'Fire'}
+          title={seg.label || 'Fire (mm)'}
         >
           {seg.label}
         </div>

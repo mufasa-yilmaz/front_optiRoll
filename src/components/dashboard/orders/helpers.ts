@@ -12,6 +12,27 @@ export function getPriorityBadge(priority: OrderPipelineRow['priority']): string
   return map[priority];
 }
 
+/** Öncelik görüntü metnini (Türkçe) döndürür. */
+export function getPriorityLabel(priority: OrderPipelineRow['priority']): string {
+  const map = {
+    Low: 'Düşük',
+    Medium: 'Orta',
+    High: 'Yüksek',
+    Urgent: 'Acil',
+  } as const;
+  return map[priority];
+}
+
+/** Durum görüntü metnini (Türkçe) döndürür. */
+export function getStatusLabel(status: OrderPipelineRow['status']): string {
+  const map = {
+    Pending: 'Beklemede',
+    Optimized: 'Optimize',
+    'In Production': 'Üretimde',
+  } as const;
+  return map[status];
+}
+
 /** Durum metni sınıfını döndürür. */
 export function getStatusTextClass(status: OrderPipelineRow['status']): string {
   const map = {

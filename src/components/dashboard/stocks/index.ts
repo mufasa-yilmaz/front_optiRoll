@@ -1,4 +1,5 @@
 /** Stok sayfasi alt bileşen export'lari. */
+export { StockFiltersBar } from './StockFiltersBar';
 export { StockTopHeader } from './StockTopHeader';
 export { StockSummaryTiles } from './StockSummaryTiles';
 export { StockSetSaveBar } from './StockSetSaveBar';

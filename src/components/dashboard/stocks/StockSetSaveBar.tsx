@@ -16,7 +16,7 @@ export function StockSetSaveBar({
         <input
           value={setName}
           onChange={(event) => onSetNameChange(event.target.value)}
-          placeholder="Set adi (Orn: Depo-A Hazir Rulolar)"
+          placeholder="Set adı (Örn: Depo-A Hazır Rulolar)"
           className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-primary/20 transition focus:ring-2"
         />
       </div>

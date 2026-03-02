@@ -3,12 +3,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { deleteStockSet, getStockSets, saveStockSet, type SavedStockSet } from '@/lib/api';
+import { DashboardPageHeader } from '@/components/dashboard';
 import {
+  StockFiltersBar,
   StockInsightsPanel,
   StockLedgerTable,
   StockSetSaveBar,
   StockSummaryTiles,
-  StockTopHeader,
   buildStockPageViewModel,
 } from '@/components/dashboard/stocks';
 import { RollSettingsCard } from '@/components/dashboard/RollSettingsCard';
@@ -63,7 +64,7 @@ export default function StocksPage() {
       setRolls([10, 10, 10]);
       setEditingStockSetId(null);
       setIsCreateSetModalOpen(false);
-      toast.success(editingStockSetId ? 'Stok seti guncellendi.' : 'Stok seti kaydedildi.');
+      toast.success(editingStockSetId ? 'Stok seti güncellendi.' : 'Stok seti kaydedildi.');
       await loadStockSets();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Stok seti kaydedilemedi');
@@ -165,13 +166,23 @@ export default function StocksPage() {
   }
 
   return (
-    <main className="flex-1 bg-background-light px-4 py-6 md:px-6 md:py-8">
-      <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-6">
-        <StockTopHeader
-          searchTerm={searchTerm}
-          onSearchTermChange={setSearchTerm}
-          onRegisterClick={handleOpenCreateSetModal}
+    <main className="flex-1 py-8 px-4 md:px-6 bg-background-light">
+      <div className="container mx-auto max-w-[1440px] flex flex-col gap-6">
+        <DashboardPageHeader
+          title="Stok ve Envanter"
+          description="Rulo stok setlerini yönetin, yeni set ekleyin veya mevcut setleri düzenleyin."
+          action={
+            <button
+              type="button"
+              onClick={handleOpenCreateSetModal}
+              className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 font-bold text-white shadow-lg shadow-primary/20 transition-all hover:bg-primary/90"
+            >
+              <span className="material-symbols-outlined">add_circle</span>
+              <span>Yeni Set Gir</span>
+            </button>
+          }
         />
+        <StockFiltersBar value={searchTerm} onChange={setSearchTerm} />
         <StockSummaryTiles metrics={viewModel.metrics} />
         <StockLedgerTable
           rows={viewModel.rows}
@@ -196,7 +207,7 @@ export default function StocksPage() {
               <div>
                 <h2 className="text-lg font-bold text-primary">Yeni Stok Seti Gir</h2>
                 <p className="text-xs text-slate-500">
-                  Set adi ve rulo tonajlarini girip kaydettiginde listeye eklenecek.
+                  Set adı ve rulo tonajlarını girip kaydettiğinizde listeye eklenecek.
                 </p>
               </div>
               <button
@@ -220,7 +231,7 @@ export default function StocksPage() {
                   onClick={handleSaveSet}
                   className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary/90"
                 >
-                  {editingStockSetId ? 'Stok Setini Guncelle' : 'Bu Stoku Set Olarak Kaydet'}
+                  {editingStockSetId ? 'Stok Setini Güncelle' : 'Bu Stoku Set Olarak Kaydet'}
                 </button>
               </div>
             </div>

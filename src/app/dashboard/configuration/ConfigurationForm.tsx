@@ -24,7 +24,7 @@ import { useOptimization } from '@/contexts/OptimizationContext';
 
 /** Başlangıçta boş veya tek örnek sipariş - kullanıcı ekleyecek */
 const INITIAL_ORDERS = [
-  { id: 'S1', m2: 100, panelWidth: 1.0, panelLength: 1 },
+  { id: 'S1', m2: 1000, panelWidth: 1.0, panelLength: 1 },
 ];
 
 /**

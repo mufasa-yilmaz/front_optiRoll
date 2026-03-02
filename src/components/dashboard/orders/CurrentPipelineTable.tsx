@@ -1,4 +1,4 @@
-import { getPriorityBadge, getStatusIcon, getStatusTextClass } from './helpers';
+import { getPriorityBadge, getPriorityLabel, getStatusIcon, getStatusLabel, getStatusTextClass } from './helpers';
 import type { OrderPipelineRow } from './types';
 
 interface CurrentPipelineTableProps {
@@ -55,7 +55,7 @@ export function CurrentPipelineTable({
           <input
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
-            placeholder="Search orders..."
+            placeholder="Sipariş ara..."
             className="w-full rounded-lg border-none bg-slate-100 py-2 pl-9 pr-4 text-sm"
           />
         </div>
@@ -64,12 +64,12 @@ export function CurrentPipelineTable({
         <table className="w-full border-collapse text-left">
           <thead>
             <tr className="bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-500">
-              <th className="border-b border-slate-100 px-6 py-4">Order ID</th>
-              <th className="border-b border-slate-100 px-6 py-4">Dimensions</th>
-              <th className="border-b border-slate-100 px-6 py-4 text-center">Weight</th>
-              <th className="border-b border-slate-100 px-6 py-4 text-center">Priority</th>
-              <th className="border-b border-slate-100 px-6 py-4">Status</th>
-              <th className="border-b border-slate-100 px-6 py-4 text-right">Actions</th>
+              <th className="border-b border-slate-100 px-6 py-4">Sipariş No</th>
+              <th className="border-b border-slate-100 px-6 py-4">Boyutlar</th>
+              <th className="border-b border-slate-100 px-6 py-4 text-center">Ağırlık</th>
+              <th className="border-b border-slate-100 px-6 py-4 text-center">Öncelik</th>
+              <th className="border-b border-slate-100 px-6 py-4">Durum</th>
+              <th className="border-b border-slate-100 px-6 py-4 text-right">İşlemler</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -87,13 +87,13 @@ export function CurrentPipelineTable({
                   <td className="px-6 py-4 text-center text-sm">{row.weightTon.toFixed(2)} t</td>
                   <td className="px-6 py-4 text-center">
                     <span className={`rounded px-2 py-0.5 text-[10px] font-black uppercase ${getPriorityBadge(row.priority)}`}>
-                      {row.priority}
+                      {getPriorityLabel(row.priority)}
                     </span>
                   </td>
                   <td className="px-6 py-4">
                     <div className={`flex items-center gap-1.5 ${getStatusTextClass(row.status)}`}>
                       <span className="material-symbols-outlined text-sm">{getStatusIcon(row.status)}</span>
-                      <span className="text-xs font-semibold">{row.status}</span>
+                      <span className="text-xs font-semibold">{getStatusLabel(row.status)}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-right">
@@ -101,7 +101,7 @@ export function CurrentPipelineTable({
                       type="button"
                       onClick={() => onDeleteRow(row.id)}
                       className="p-1 text-slate-400 hover:text-red-600"
-                      title="Delete"
+                      title="Sil"
                     >
                       <span className="material-symbols-outlined text-lg">delete</span>
                     </button>

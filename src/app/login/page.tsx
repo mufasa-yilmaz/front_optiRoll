@@ -96,7 +96,7 @@ function LoginContent() {
             OptiRoll
           </h2>
           <p className="text-2xl xl:text-3xl font-light text-blue-100 italic">
-            &ldquo;Optimize production, eliminate waste.&rdquo;
+            &ldquo;Üretimi optimize et, fireyi azalt.&rdquo;
           </p>
           <div className="mt-12 h-1 w-24 bg-accent-green mx-auto rounded-full" />
         </div>

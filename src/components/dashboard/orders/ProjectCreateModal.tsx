@@ -1,4 +1,4 @@
-import { getPriorityBadge, getStatusIcon, getStatusTextClass } from './helpers';
+import { getPriorityBadge, getPriorityLabel, getStatusIcon, getStatusLabel, getStatusTextClass } from './helpers';
 import type { NewOrderForm, OrderPipelineRow } from './types';
 
 interface ProjectCreateModalProps {
@@ -58,7 +58,7 @@ export function ProjectCreateModal({
           <div className="flex items-center gap-3">
             <span className="material-symbols-outlined text-primary">engineering</span>
             <h3 className="text-lg font-bold tracking-tight text-white">
-              {isEditMode ? 'Update Project' : 'Create New Project'}
+              {isEditMode ? 'Projeyi Güncelle' : 'Yeni Proje Oluştur'}
             </h3>
           </div>
           <button type="button" onClick={onClose} className="text-slate-300 transition-colors hover:text-white">
@@ -70,46 +70,46 @@ export function ProjectCreateModal({
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                Project Name <span className="text-primary">*</span>
+                Proje Adı <span className="text-primary">*</span>
               </label>
               <input
                 value={setName}
                 onChange={(event) => onSetNameChange(event.target.value)}
                 className="w-full rounded-lg border-slate-300 bg-slate-50 px-4 py-2.5 text-slate-900 focus:border-primary focus:ring-2 focus:ring-primary/20"
-                placeholder="e.g., Q3 Infrastructure Upgrade"
+                placeholder="Örn: Q3 Altyapı Yenileme"
                 type="text"
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Project Code</label>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Proje Kodu</label>
               <input
                 value={projectCode}
                 onChange={(event) => onProjectCodeChange(event.target.value)}
                 className="w-full rounded-lg border-slate-300 bg-slate-50 px-4 py-2.5 text-slate-900 focus:border-primary focus:ring-2 focus:ring-primary/20"
-                placeholder="e.g., PRJ-2024-001"
+                placeholder="Örn: PRJ-2024-001"
                 type="text"
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Department</label>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Departman</label>
               <select
                 value={department}
                 onChange={(event) => onDepartmentChange(event.target.value)}
                 className="w-full rounded-lg border-slate-300 bg-slate-50 px-4 py-2.5 text-slate-900 focus:border-primary focus:ring-2 focus:ring-primary/20"
               >
-                <option>Engineering</option>
-                <option>Logistics</option>
-                <option>Quality Assurance</option>
-                <option>Safety</option>
+                <option value="Engineering">Mühendislik</option>
+                <option value="Logistics">Lojistik</option>
+                <option value="Quality Assurance">Kalite Güvence</option>
+                <option value="Safety">İş Güvenliği</option>
               </select>
             </div>
             <div className="sm:col-span-2">
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Description</label>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Açıklama</label>
               <textarea
                 value={description}
                 onChange={(event) => onDescriptionChange(event.target.value)}
                 className="w-full resize-none rounded-lg border-slate-300 bg-slate-50 px-4 py-2.5 text-slate-900 focus:border-primary focus:ring-2 focus:ring-primary/20"
-                placeholder="Provide a high-level summary of project goals and scope..."
+                placeholder="Proje hedefleri ve kapsamı hakkında kısa özet..."
                 rows={3}
               />
             </div>
@@ -167,10 +167,10 @@ export function ProjectCreateModal({
                   onChange={(event) => onNewOrderChange((prev) => ({ ...prev, priority: event.target.value as NewOrderForm['priority'] }))}
                   className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm"
                 >
-                  <option>Low</option>
-                  <option>Medium</option>
-                  <option>High</option>
-                  <option>Urgent</option>
+                  <option value="Low">Düşük</option>
+                  <option value="Medium">Orta</option>
+                  <option value="High">Yüksek</option>
+                  <option value="Urgent">Acil</option>
                 </select>
               </div>
               <div className="flex justify-end">
@@ -217,13 +217,13 @@ export function ProjectCreateModal({
                       <td className="px-6 py-4 text-center text-sm">{row.weightTon.toFixed(2)} t</td>
                       <td className="px-6 py-4 text-center">
                         <span className={`rounded px-2 py-0.5 text-[10px] font-black uppercase ${getPriorityBadge(row.priority)}`}>
-                          {row.priority}
+                          {getPriorityLabel(row.priority)}
                         </span>
                       </td>
                       <td className="px-6 py-4">
                         <div className={`flex items-center gap-1.5 ${getStatusTextClass(row.status)}`}>
                           <span className="material-symbols-outlined text-sm">{getStatusIcon(row.status)}</span>
-                          <span className="text-xs font-semibold">{row.status}</span>
+                          <span className="text-xs font-semibold">{getStatusLabel(row.status)}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">
@@ -258,7 +258,7 @@ export function ProjectCreateModal({
             onClick={onClose}
             className="rounded-lg px-5 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-200"
           >
-            Cancel
+            İptal
           </button>
           <button
             type="button"
@@ -266,7 +266,7 @@ export function ProjectCreateModal({
             className="flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/20 transition-all hover:bg-primary/90"
           >
             <span className="material-symbols-outlined text-[18px]">check_circle</span>
-            {isEditMode ? 'Update Project' : 'Create Project'}
+            {isEditMode ? 'Projeyi Güncelle' : 'Proje Oluştur'}
           </button>
         </div>
       </div>

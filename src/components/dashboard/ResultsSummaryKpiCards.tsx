@@ -23,7 +23,7 @@ export function ResultsSummaryKpiCards() {
           <div className="text-sm font-medium text-gray-500">Toplam Maliyet</div>
           <div className="mt-2 text-[10px] text-gray-400 border-t border-gray-100 pt-2 flex items-center gap-1">
             <span className="material-symbols-outlined text-[10px]">info</span>
-            Fire + Stok + Setup maliyeti
+            Fire, stok ve kurulum maliyeti
           </div>
         </div>
         <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-gradient-to-br from-blue-50 to-transparent rounded-full opacity-50 group-hover:scale-110 transition-transform" />

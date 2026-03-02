@@ -56,8 +56,8 @@ export function StockLedgerTable({
     <section className="overflow-hidden rounded-xl border border-primary/5 bg-white shadow-md">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-primary/5 bg-slate-50/70 px-6 py-4">
         <div>
-          <h2 className="text-lg font-bold text-primary">Live Inventory Ledger</h2>
-          <p className="text-xs text-slate-500">Stok setleri tek ekranda izlenir ve yonetilir.</p>
+          <h2 className="text-lg font-bold text-primary">Canlı Stok Defteri</h2>
+          <p className="text-xs text-slate-500">Stok setleri tek ekranda izlenir ve yönetilir.</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -72,7 +72,7 @@ export function StockLedgerTable({
             className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600"
           >
             <span className="material-symbols-outlined text-lg">download</span>
-            Export
+            Dışa Aktar
           </button>
         </div>
       </div>
@@ -81,27 +81,27 @@ export function StockLedgerTable({
         <table className="min-w-[980px] w-full border-collapse text-left">
           <thead>
             <tr className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-              <th className="border-b border-primary/5 px-6 py-4">Set ID</th>
-              <th className="border-b border-primary/5 px-6 py-4">Set Adi</th>
-              <th className="border-b border-primary/5 px-6 py-4">Rulo Sayisi</th>
+              <th className="border-b border-primary/5 px-6 py-4">Set No</th>
+              <th className="border-b border-primary/5 px-6 py-4">Set Adı</th>
+              <th className="border-b border-primary/5 px-6 py-4">Rulo Sayısı</th>
               <th className="border-b border-primary/5 px-6 py-4">Kapasite Detayi (ton)</th>
-              <th className="border-b border-primary/5 px-6 py-4">Kayit Tarihi</th>
-              <th className="border-b border-primary/5 px-6 py-4">Kullanim</th>
+              <th className="border-b border-primary/5 px-6 py-4">Kayıt Tarihi</th>
+              <th className="border-b border-primary/5 px-6 py-4">Kullanım</th>
               <th className="border-b border-primary/5 px-6 py-4">Durum</th>
-              <th className="border-b border-primary/5 px-6 py-4 text-center">Islemler</th>
+              <th className="border-b border-primary/5 px-6 py-4 text-center">İşlemler</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-primary/5 text-sm">
             {loading ? (
               <tr>
                 <td colSpan={8} className="px-6 py-8 text-sm text-slate-500">
-                  Yukleniyor...
+                  Yükleniyor...
                 </td>
               </tr>
             ) : pagedRows.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-6 py-8 text-sm text-slate-500">
-                  Goruntulenecek stok seti bulunamadi.
+                  Görüntülenecek stok seti bulunamadı.
                 </td>
               </tr>
             ) : (
@@ -117,8 +117,8 @@ export function StockLedgerTable({
                   <td className="w-72 px-6 py-4">
                     <div className="flex flex-col gap-1.5">
                       <div className="flex justify-between text-[11px] font-bold">
-                        <span>Used: {row.usedTon}</span>
-                        <span>Rem: {row.remainingTon}</span>
+                        <span>Kullanılan: {row.usedTon}</span>
+                        <span>Kalan: {row.remainingTon}</span>
                       </div>
                       <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
                         <div
@@ -126,7 +126,7 @@ export function StockLedgerTable({
                           style={{ width: `${Math.round(row.usageRate * 100)}%` }}
                         />
                       </div>
-                      <p className="text-[10px] italic text-slate-400">Initial: {row.totalTon.toFixed(2)} ton</p>
+                      <p className="text-[10px] italic text-slate-400">Başlangıç: {row.totalTon.toFixed(2)} ton</p>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-slate-500">{row.createdAtText}</td>
@@ -154,7 +154,7 @@ export function StockLedgerTable({
                         onClick={() => onUpdateSet(row.setId)}
                         className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100"
                       >
-                        Guncelle
+                        Güncelle
                       </button>
                       <button
                         type="button"
@@ -174,7 +174,7 @@ export function StockLedgerTable({
 
       <div className="flex items-center justify-between border-t border-primary/5 bg-slate-50/70 px-6 py-4">
         <p className="text-xs font-medium text-slate-500">
-          Gosterilen <span className="text-primary">{rangeStart} - {rangeEnd}</span> / {rows.length} set
+          Gösterilen <span className="text-primary">{rangeStart} - {rangeEnd}</span> / {rows.length} set
         </p>
         <div className="flex items-center gap-2">
           <button

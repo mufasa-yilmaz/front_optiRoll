@@ -22,7 +22,7 @@ export function StockTopHeader({
           <div>
             <h1 className="text-xl font-bold tracking-tight text-primary">Stok ve Envanter</h1>
             <p className="text-[10px] font-semibold uppercase tracking-widest text-primary/60">
-              Inventory Systems
+              Envanter Sistemleri
             </p>
           </div>
         </div>

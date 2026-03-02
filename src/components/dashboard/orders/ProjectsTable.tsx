@@ -1,6 +1,6 @@
 import type { SavedOrderSet } from '@/lib/api';
 import { formatOrderSetDate, fromApiOrderRow, getProjectProgress } from './helpers';
-import { getPriorityBadge, getStatusIcon, getStatusTextClass } from './helpers';
+import { getPriorityBadge, getPriorityLabel, getStatusIcon, getStatusLabel, getStatusTextClass } from './helpers';
 import type { OrderPipelineRow } from './types';
 
 interface ProjectsTableProps {
@@ -33,10 +33,10 @@ export function ProjectsTable({
         <thead>
           <tr className="border-b border-slate-200 bg-slate-50">
             <th className="w-12 px-4 py-4" />
-            <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Project ID</th>
-            <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Project Name</th>
-            <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Date Created</th>
-            <th className="px-4 py-4 text-right text-xs font-bold uppercase tracking-wider text-slate-500">Progress</th>
+            <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Proje No</th>
+            <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Proje Adı</th>
+            <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Oluşturulma Tarihi</th>
+            <th className="px-4 py-4 text-right text-xs font-bold uppercase tracking-wider text-slate-500">İlerleme</th>
             <th className="w-24 px-4 py-4" />
           </tr>
         </thead>
@@ -76,11 +76,11 @@ export function ProjectsTable({
         </tbody>
       </table>
       <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-6 py-4">
-        <span className="text-sm text-slate-500">Showing 1 to {sets.length} of {sets.length} projects</span>
+        <span className="text-sm text-slate-500">Toplam {sets.length} proje listeleniyor</span>
         <div className="flex gap-2">
-          <button type="button" className="rounded border border-slate-200 bg-white px-3 py-1 text-sm font-semibold">Previous</button>
+          <button type="button" className="rounded border border-slate-200 bg-white px-3 py-1 text-sm font-semibold">Önceki</button>
           <button type="button" className="rounded border border-primary bg-primary px-3 py-1 text-sm font-semibold text-white">1</button>
-          <button type="button" className="rounded border border-slate-200 bg-white px-3 py-1 text-sm font-semibold">Next</button>
+          <button type="button" className="rounded border border-slate-200 bg-white px-3 py-1 text-sm font-semibold">Sonraki</button>
         </div>
       </div>
     </section>
@@ -150,7 +150,7 @@ function FragmentRow({
         <tr className="bg-slate-50">
           <td className="p-0" colSpan={6}>
             <div className="border-b border-slate-100 px-12 py-6">
-              <h4 className="mb-4 text-xs font-black uppercase tracking-widest text-primary">Associated Orders</h4>
+              <h4 className="mb-4 text-xs font-black uppercase tracking-widest text-primary">İlişkili Siparişler</h4>
               <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
                 <table className="w-full text-sm">
                   <thead>
@@ -178,13 +178,13 @@ function FragmentRow({
                           <td className="px-6 py-4 text-sm text-center">{row.weightTon.toFixed(2)} t</td>
                           <td className="px-6 py-4 text-center">
                             <span className={`rounded px-2 py-0.5 text-[10px] font-black uppercase ${getPriorityBadge(row.priority)}`}>
-                              {row.priority}
+                              {getPriorityLabel(row.priority)}
                             </span>
                           </td>
                           <td className="px-6 py-4">
                             <div className={`flex items-center gap-1.5 ${getStatusTextClass(row.status)}`}>
                               <span className="material-symbols-outlined text-sm">{getStatusIcon(row.status)}</span>
-                              <span className="text-xs font-semibold">{row.status}</span>
+                              <span className="text-xs font-semibold">{getStatusLabel(row.status)}</span>
                             </div>
                           </td>
                           <td className="px-6 py-4 text-right">

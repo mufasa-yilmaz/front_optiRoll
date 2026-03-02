@@ -2,6 +2,7 @@
  * Dashboard bileşenleri: optimizasyon sonuçları ve giriş paneli.
  */
 export { DashboardHeader } from './DashboardHeader';
+export { DashboardPageHeader } from './DashboardPageHeader';
 export { DashboardOverviewHeader } from './DashboardOverviewHeader';
 export { ResultsKpiGrid } from './ResultsKpiGrid';
 export { ResultsSummaryHeader } from './ResultsSummaryHeader';

@@ -31,7 +31,7 @@ export function StockSummaryTiles({ metrics }: StockSummaryTilesProps) {
           <span className="material-symbols-outlined rounded-lg bg-amber-500/10 p-2 text-amber-600">warning</span>
           <span className="text-xs font-bold text-amber-600">Aksiyon</span>
         </div>
-        <p className="text-sm font-medium text-slate-500">Dusuk Stok Uyarisi</p>
+        <p className="text-sm font-medium text-slate-500">Düşük Stok Uyarısı</p>
         <p className="mt-1 text-3xl font-bold text-slate-900">{metrics.lowStockCount}</p>
       </div>
       <div className="rounded-xl border border-primary/5 bg-white p-5 shadow-sm">

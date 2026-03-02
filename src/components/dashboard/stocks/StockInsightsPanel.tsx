@@ -50,14 +50,14 @@ export function StockInsightsPanel({ rows }: StockInsightsPanelProps) {
         <div className="mb-5 flex items-center justify-between">
           <h3 className="flex items-center gap-2 font-bold text-primary">
             <span className="material-symbols-outlined text-primary">pie_chart</span>
-            Stok Dagilimi
+            Stok Dağılımı
           </h3>
-          <span className="text-[10px] font-bold uppercase tracking-tight text-slate-400">Canli istatistik</span>
+          <span className="text-[10px] font-bold uppercase tracking-tight text-slate-400">Canlı istatistik</span>
         </div>
         <div className="space-y-4">
           <div className="space-y-1">
             <div className="flex justify-between text-xs font-bold">
-              <span>Yuksek Tonajli Setler (8+ ton)</span>
+              <span>Yüksek Tonajlı Setler (8+ ton)</span>
               <span>%{distribution.heavy}</span>
             </div>
             <div className="h-3 w-full overflow-hidden rounded-full bg-slate-100">
@@ -66,7 +66,7 @@ export function StockInsightsPanel({ rows }: StockInsightsPanelProps) {
           </div>
           <div className="space-y-1">
             <div className="flex justify-between text-xs font-bold">
-              <span>Orta Tonajli Setler (4-8 ton)</span>
+              <span>Orta Tonajlı Setler (4-8 ton)</span>
               <span>%{distribution.medium}</span>
             </div>
             <div className="h-3 w-full overflow-hidden rounded-full bg-slate-100">
@@ -75,7 +75,7 @@ export function StockInsightsPanel({ rows }: StockInsightsPanelProps) {
           </div>
           <div className="space-y-1">
             <div className="flex justify-between text-xs font-bold">
-              <span>Dusuk Tonajli Setler (2-4 ton)</span>
+              <span>Düşük Tonajlı Setler (2-4 ton)</span>
               <span>%{distribution.light}</span>
             </div>
             <div className="h-3 w-full overflow-hidden rounded-full bg-slate-100">
@@ -99,21 +99,21 @@ export function StockInsightsPanel({ rows }: StockInsightsPanelProps) {
           <div className="mb-4 flex items-center justify-between">
             <span className="material-symbols-outlined rounded-lg bg-white/20 p-2">insights</span>
             <span className="rounded bg-amber-400 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">
-              Optimal Path
+              Optimal Yol
             </span>
           </div>
-          <h4 className="mb-2 text-xl font-bold leading-tight">Optimizasyon Onerisi</h4>
+          <h4 className="mb-2 text-xl font-bold leading-tight">Optimizasyon Önerisi</h4>
           <p className="text-sm leading-relaxed text-white/85">
             {topSuggestion
               ? `"${topSuggestion.setName}" seti ile sonraki kesim dongusunda fireyi azaltma firsati var.`
-              : 'Kayitli set olusturarak optimizasyon onerisi almak icin veriyi hazirlayin.'}
+              : 'Kayıtlı set oluşturarak optimizasyon önerisi almak için veriyi hazırlayın.'}
           </p>
         </div>
         <Link
           href="/dashboard/configuration"
           className="relative z-10 mt-6 rounded-lg bg-white px-4 py-2 text-center text-sm font-bold text-primary transition hover:bg-white/90"
         >
-          Run Optimizer
+          Optimizasyonu Çalıştır
         </Link>
         <div className="absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
       </div>

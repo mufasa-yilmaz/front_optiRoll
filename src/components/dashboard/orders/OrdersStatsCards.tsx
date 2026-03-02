@@ -18,7 +18,7 @@ export function OrdersStatsCards({
             <span className="material-symbols-outlined">pending_actions</span>
           </div>
           <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Active Orders</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Aktif Siparişler</p>
             <p className="text-2xl font-black text-slate-900">{activeOrders}</p>
           </div>
         </div>
@@ -29,7 +29,7 @@ export function OrdersStatsCards({
             <span className="material-symbols-outlined">trending_up</span>
           </div>
           <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Efficiency Rate</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Verimlilik Oranı</p>
             <p className="text-2xl font-black text-slate-900">%{efficiencyRate.toFixed(1)}</p>
           </div>
         </div>
@@ -40,7 +40,7 @@ export function OrdersStatsCards({
             <span className="material-symbols-outlined">inventory_2</span>
           </div>
           <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Remaining Stock</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Kalan Stok</p>
             <p className="text-2xl font-black text-slate-900">{remainingStockKg.toLocaleString('tr-TR')} kg</p>
           </div>
         </div>

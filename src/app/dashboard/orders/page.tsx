@@ -303,15 +303,15 @@ export default function OrdersPage() {
 
         <div className="flex gap-4 overflow-x-auto pb-2">
           <div className="bg-white p-4 rounded-xl border border-slate-200 min-w-[140px] shadow-sm">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Pending</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Beklemede</span>
             <p className="text-2xl font-black text-slate-900">{pendingCount}</p>
           </div>
           <div className="bg-white p-4 rounded-xl border border-slate-200 min-w-[140px] shadow-sm">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Optimized</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Optimize</span>
             <p className="text-2xl font-black text-primary">{optimizedCount}</p>
           </div>
           <div className="bg-white p-4 rounded-xl border border-slate-200 min-w-[140px] shadow-sm">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Production</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Üretimde</span>
             <p className="text-2xl font-black text-emerald-600">{productionCount}</p>
           </div>
         </div>
@@ -333,13 +333,13 @@ export default function OrdersPage() {
             <span className="material-symbols-outlined block">insights</span>
           </div>
           <div className="flex-1">
-            <h4 className="font-bold text-primary">System Suggestion</h4>
+            <h4 className="font-bold text-primary">Sistem Önerisi</h4>
             <p className="text-sm text-slate-600">
               Benzer malzeme gerektiren siparişleri set olarak kaydedip tek adımda konfigürasyona yükleyebilirsiniz.
             </p>
           </div>
           <Link href="/dashboard/configuration" className="text-primary font-bold text-sm whitespace-nowrap hover:underline underline-offset-4">
-            Run Optimization
+            Optimizasyonu Çalıştır
           </Link>
         </div>
 
