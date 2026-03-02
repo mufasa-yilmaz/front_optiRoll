@@ -193,8 +193,12 @@ export function ConfigurationForm() {
     const tick = () => {
       if (cancelled) return;
       setLoadingStep(currentIndex);
+      const isLastStep = currentIndex >= LOADING_STEPS.length - 1;
+      if (isLastStep) {
+        return;
+      }
       timeoutId = setTimeout(() => {
-        currentIndex = (currentIndex + 1) % LOADING_STEPS.length;
+        currentIndex += 1;
         tick();
       }, durations[currentIndex % durations.length]);
     };

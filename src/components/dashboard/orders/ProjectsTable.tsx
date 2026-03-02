@@ -156,7 +156,7 @@ function FragmentRow({
                   <thead>
                     <tr className="bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-500">
                       <th className="border-b border-slate-100 px-6 py-4">Sipariş ID</th>
-                      <th className="border-b border-slate-100 px-6 py-4">Boyutlar</th>
+                      <th className="border-b border-slate-100 px-6 py-4">Talep (m²)</th>
                       <th className="border-b border-slate-100 px-6 py-4 text-center">Ağırlık</th>
                       <th className="border-b border-slate-100 px-6 py-4 text-center">Öncelik</th>
                       <th className="border-b border-slate-100 px-6 py-4">Durum</th>
@@ -169,11 +169,8 @@ function FragmentRow({
                       return (
                         <tr key={`${setItem.id}-${orderIdx}`} className="hover:bg-slate-50/50 transition-colors">
                           <td className="px-6 py-4 font-bold text-slate-900">{row.id}</td>
-                          <td className="px-6 py-4 text-sm text-slate-600">
-                            {row.widthMm} × {row.lengthM} m
-                            {(row.panelLengthM ?? 1) !== 1 && (
-                              <span className="ml-1 text-slate-500">(kesim: {row.panelLengthM} m)</span>
-                            )}
+                          <td className="px-6 py-4 text-sm text-slate-600 font-mono">
+                            {((row.widthMm / 1000) * row.lengthM).toFixed(2)} m²
                           </td>
                           <td className="px-6 py-4 text-sm text-center">{row.weightTon.toFixed(2)} t</td>
                           <td className="px-6 py-4 text-center">

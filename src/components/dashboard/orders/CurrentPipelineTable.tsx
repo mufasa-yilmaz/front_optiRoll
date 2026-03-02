@@ -65,7 +65,7 @@ export function CurrentPipelineTable({
           <thead>
             <tr className="bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-500">
               <th className="border-b border-slate-100 px-6 py-4">Sipariş No</th>
-              <th className="border-b border-slate-100 px-6 py-4">Boyutlar</th>
+              <th className="border-b border-slate-100 px-6 py-4">Talep (m²)</th>
               <th className="border-b border-slate-100 px-6 py-4 text-center">Ağırlık</th>
               <th className="border-b border-slate-100 px-6 py-4 text-center">Öncelik</th>
               <th className="border-b border-slate-100 px-6 py-4">Durum</th>
@@ -83,7 +83,7 @@ export function CurrentPipelineTable({
               rows.map((row) => (
                 <tr key={row.id} className="transition-colors hover:bg-slate-50/50">
                   <td className="px-6 py-4 font-bold text-slate-900">{row.id}</td>
-                  <td className="px-6 py-4 text-sm text-slate-600">{row.widthMm} x {row.lengthM} m</td>
+                  <td className="px-6 py-4 text-sm text-slate-600 font-mono">{((row.widthMm / 1000) * row.lengthM).toFixed(2)} m²</td>
                   <td className="px-6 py-4 text-center text-sm">{row.weightTon.toFixed(2)} t</td>
                   <td className="px-6 py-4 text-center">
                     <span className={`rounded px-2 py-0.5 text-[10px] font-black uppercase ${getPriorityBadge(row.priority)}`}>
