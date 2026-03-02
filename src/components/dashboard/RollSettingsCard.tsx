@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef, useEffect } from 'react';
 import { DashboardCard } from './DashboardCard';
 
 /** Hazır stok seti (liste seçimi için) */
@@ -35,6 +36,16 @@ export function RollSettingsCard({
 }: RollSettingsCardProps) {
   const total = rolls.reduce((s, r) => s + r, 0);
   const showStockSetSelect = stockSets.length > 0 && onStockSetSelect;
+  const listRef = useRef<HTMLDivElement>(null);
+  const prevLengthRef = useRef(rolls.length);
+
+  /** Yeni rulo eklendiğinde liste alanını aşağı kaydırarak son eklenen satırı görünür yapar */
+  useEffect(() => {
+    if (rolls.length > prevLengthRef.current) {
+      listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' });
+    }
+    prevLengthRef.current = rolls.length;
+  }, [rolls.length]);
 
   const addRoll = () => onRollsChange([...rolls, 5]);
   const removeRoll = (i: number) => onRollsChange(rolls.filter((_, idx) => idx !== i));
@@ -81,7 +92,7 @@ export function RollSettingsCard({
         <label className="block text-xs font-medium text-slate-600">
           Rulo Ağırlıkları (ton)
         </label>
-        <div className="space-y-2 max-h-48 overflow-y-auto">
+        <div ref={listRef} className="space-y-2 max-h-48 overflow-y-auto">
           {rolls.length === 0 ? (
             <p className="text-sm text-slate-500 py-4 text-center">
               Rulo eklemek için &quot;Rulo Ekle&quot; butonuna tıklayın

@@ -17,9 +17,9 @@ export interface ScenarioSelectionCardProps {
 export function ScenarioSelectionCard({
   safetyStock = 12,
   onSafetyStockChange,
-  maxOrdersPerRoll = 8,
+  maxOrdersPerRoll = 2,
   onMaxOrdersPerRollChange,
-  maxRollsPerOrder = 5,
+  maxRollsPerOrder = 2,
   onMaxRollsPerOrderChange,
 }: ScenarioSelectionCardProps) {
   return (

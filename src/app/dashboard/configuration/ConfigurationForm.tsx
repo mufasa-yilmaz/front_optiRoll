@@ -38,8 +38,8 @@ export function ConfigurationForm() {
   const [thickness, setThickness] = useState(0.75);
   const [density, setDensity] = useState(7850);
   const [safetyStock, setSafetyStock] = useState(12);
-  const [maxOrdersPerRoll, setMaxOrdersPerRoll] = useState(8);
-  const [maxRollsPerOrder, setMaxRollsPerOrder] = useState(5);
+  const [maxOrdersPerRoll, setMaxOrdersPerRoll] = useState(2);
+  const [maxRollsPerOrder, setMaxRollsPerOrder] = useState(2);
   const [rolls, setRolls] = useState<number[]>([10, 10, 10]);
   const [fireCost, setFireCost] = useState(450);
   const [setupCost, setSetupCost] = useState(120);
@@ -211,7 +211,7 @@ export function ConfigurationForm() {
     }
     const validOrders = getValidOrders();
     if (validOrders.length === 0) {
-      toast.error('Geçerli sipariş bulunamadı. m², panel genişliği ve panel uzunluğu 0\'dan büyük olmalıdır.');
+      toast.error('Geçerli sipariş bulunamadı. m², panel genişliği ve kesim uzunluğu 0\'dan büyük olmalıdır.');
       return;
     }
     setLoading(true);

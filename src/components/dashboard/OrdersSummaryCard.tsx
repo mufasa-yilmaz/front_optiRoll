@@ -123,7 +123,7 @@ export function OrdersSummaryCard({
           </div>
         </div>
       </div>
-      <div className="overflow-x-auto flex-1">
+      <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0 max-h-[min(60vh,480px)]">
         <table className="min-w-full divide-y divide-slate-200">
           <thead className="bg-slate-50">
             <tr>
@@ -149,7 +149,7 @@ export function OrdersSummaryCard({
                 className="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider"
                 scope="col"
               >
-                Panel Uzunluğu (m)
+                Kesim Uzunluğu (m)
               </th>
               <th
                 className="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider"
@@ -192,11 +192,11 @@ export function OrdersSummaryCard({
                       {editable ? (
                         <input
                           type="number"
-                          min={0.01}
+                          min={1}
                           step={1}
                           value={order.m2}
                           onChange={(e) =>
-                            updateOrder(i, 'm2', parseFloat(e.target.value) || 0.01)
+                            updateOrder(i, 'm2', parseFloat(e.target.value) || 1)
                           }
                           className="w-24 text-right rounded border border-slate-300 py-1.5 px-2 text-sm font-mono"
                         />
@@ -208,8 +208,8 @@ export function OrdersSummaryCard({
                       {editable ? (
                         <input
                           type="number"
-                          min={0.01}
-                          step={0.1}
+                          min={0.5}
+                          step={0.5}
                           value={order.panelWidth}
                           onChange={(e) =>
                             updateOrder(i, 'panelWidth', parseFloat(e.target.value) || 0.01)
@@ -224,8 +224,8 @@ export function OrdersSummaryCard({
                       {editable ? (
                         <input
                           type="number"
-                          min={0.01}
-                          step={0.1}
+                          min={0.5}
+                          step={0.5}
                           value={order.panelLength ?? 1}
                           onChange={(e) =>
                             updateOrder(i, 'panelLength', parseFloat(e.target.value) || 0.01)
