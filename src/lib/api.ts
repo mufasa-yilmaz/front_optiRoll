@@ -3,7 +3,13 @@
  * Kesme Stoku Optimizasyon API'sine istek atar.
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
+const RAW_API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
+// API taban adresini normalize eder: protokol yoksa https ekler, sonda ekstra /'ları temizler.
+const API_BASE = RAW_API_BASE
+  ? RAW_API_BASE.startsWith('http')
+    ? RAW_API_BASE.replace(/\/+$/, '')
+    : `https://${RAW_API_BASE.replace(/^\/+/, '').replace(/\/+$/, '')}`
+  : '';
 
 export interface MaterialInput {
   thickness: number;
