@@ -122,6 +122,7 @@ export function ProjectCreateModal({
             <div className="space-y-4 p-4">
               <div>
                 <label className="mb-1 block text-sm font-semibold text-slate-700">Sipariş ID</label>
+                <p className="mb-1.5 text-xs text-slate-500">Siparişi tanımlayan benzersiz kod (örn. proje kodu veya müşteri referansı)</p>
                 <input
                   value={newOrder.id}
                   onChange={(event) => onNewOrderChange((prev) => ({ ...prev, id: event.target.value }))}
@@ -129,49 +130,85 @@ export function ProjectCreateModal({
                   placeholder="Örn: ORD-2024-X42"
                 />
               </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-5">
-                <input
-                  type="number"
-                  value={newOrder.widthMm}
-                  onChange={(event) => onNewOrderChange((prev) => ({ ...prev, widthMm: Number(event.target.value) }))}
-                  className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm"
-                  placeholder="Genişlik (mm)"
-                />
-                <input
-                  type="number"
-                  value={newOrder.lengthM}
-                  onChange={(event) => onNewOrderChange((prev) => ({ ...prev, lengthM: Number(event.target.value) }))}
-                  className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm"
-                  placeholder="Uzunluk (m)"
-                />
-                <input
-                  type="number"
-                  min={0.01}
-                  step={0.1}
-                  value={newOrder.panelLengthM ?? 1}
-                  onChange={(event) => onNewOrderChange((prev) => ({ ...prev, panelLengthM: Number(event.target.value) || 1 }))}
-                  className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm"
-                  placeholder="Panel uzunluğu (m)"
-                  title="Kesim uzunluğu"
-                />
-                <input
-                  type="number"
-                  step={0.01}
-                  value={newOrder.weightTon}
-                  onChange={(event) => onNewOrderChange((prev) => ({ ...prev, weightTon: Number(event.target.value) }))}
-                  className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm"
-                  placeholder="Ağırlık (ton)"
-                />
-                <select
-                  value={newOrder.priority}
-                  onChange={(event) => onNewOrderChange((prev) => ({ ...prev, priority: event.target.value as NewOrderForm['priority'] }))}
-                  className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm"
-                >
-                  <option value="Low">Düşük</option>
-                  <option value="Medium">Orta</option>
-                  <option value="High">Yüksek</option>
-                  <option value="Urgent">Acil</option>
-                </select>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 items-start">
+                <div className="flex h-full flex-col">
+                  <label className="mb-1 block text-sm font-semibold text-slate-700">Talep (m²)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={newOrder.m2}
+                    onChange={(event) => onNewOrderChange((prev) => ({ ...prev, m2: Number(event.target.value) || 0 }))}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm"
+                    placeholder="100"
+                  />
+                  <p className="mt-1 text-xs text-slate-500">Sipariş toplam alanı, m²</p>
+                </div>
+                <div className="flex h-full flex-col">
+                  <label className="mb-1 block text-sm font-semibold text-slate-700">Genişlik (m)</label>
+                  <input
+                    type="number"
+                    min={0.5}
+                    step={0.5}
+                    value={newOrder.widthM}
+                    onChange={(event) => onNewOrderChange((prev) => ({ ...prev, widthM: Number(event.target.value) || 1 }))}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm"
+                    placeholder="1"
+                  />
+                  <p className="mt-1 text-xs text-slate-500">Panel genişliği, metre (varsayılan 1 m)</p>
+                </div>
+                <div className="flex h-full flex-col">
+                  <label className="mb-1 block text-sm font-semibold text-slate-700">Kesim uzunluğu (m)</label>
+                  <input
+                    type="number"
+                    min={0.5}
+                    step={0.5}
+                    value={newOrder.panelLengthM ?? 1}
+                    onChange={(event) => onNewOrderChange((prev) => ({ ...prev, panelLengthM: Number(event.target.value) || 1 }))}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm"
+                    placeholder="1"
+                  />
+                  <p className="mt-1 text-xs text-slate-500">Parça başına kesim uzunluğu; bu uzunluk ve katları kesilir</p>
+                </div>
+                <div className="flex h-full flex-col">
+                  <label className="mb-1 block text-sm font-semibold text-slate-700">Malzeme</label>
+                  <select
+                    value={newOrder.material}
+                    onChange={(event) => onNewOrderChange((prev) => ({ ...prev, material: event.target.value as NewOrderForm['material'] }))}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm"
+                  >
+                    <option value="galvaniz">Galvaniz</option>
+                    <option value="aluminyum">Alüminyum</option>
+                  </select>
+                  <p className="mt-1 text-xs text-slate-500">Yoğunluğa göre ağırlık hesaplanır</p>
+                </div>
+                <div className="flex h-full flex-col">
+                  <label className="mb-1 block text-sm font-semibold text-slate-700">Kalınlık (mm)</label>
+                  <input
+                    type="number"
+                    min={0.1}
+                    step={0.01}
+                    value={newOrder.thicknessMm}
+                    onChange={(event) => onNewOrderChange((prev) => ({ ...prev, thicknessMm: Number(event.target.value) || 0.75 }))}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm"
+                    placeholder="0.75"
+                  />
+                  <p className="mt-1 text-xs text-slate-500">Malzeme kalınlığı, mm; ağırlık buna göre hesaplanır</p>
+                </div>
+                <div className="flex h-full flex-col">
+                  <label className="mb-1 block text-sm font-semibold text-slate-700">Öncelik</label>
+                  <select
+                    value={newOrder.priority}
+                    onChange={(event) => onNewOrderChange((prev) => ({ ...prev, priority: event.target.value as NewOrderForm['priority'] }))}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm"
+                  >
+                    <option value="Low">Düşük</option>
+                    <option value="Medium">Orta</option>
+                    <option value="High">Yüksek</option>
+                    <option value="Urgent">Acil</option>
+                  </select>
+                  <p className="mt-1 text-xs text-slate-500">Üretim sıralaması: Düşük → Acil</p>
+                </div>
               </div>
               <div className="flex justify-end">
                 <button

@@ -34,53 +34,72 @@ export function OrderCreateFormCard({
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="mb-1 block text-sm font-semibold text-slate-700">Genişlik (mm)</label>
+            <label className="mb-1 block text-sm font-semibold text-slate-700">Talep (m²)</label>
             <input
               type="number"
-              value={newOrder.widthMm}
-              onChange={(event) => onNewOrderChange((prev) => ({ ...prev, widthMm: Number(event.target.value) }))}
+              min={1}
+              step={1}
+              value={newOrder.m2}
+              onChange={(event) => onNewOrderChange((prev) => ({ ...prev, m2: Number(event.target.value) || 0 }))}
               className="w-full rounded-lg border border-slate-200 p-2.5 text-sm"
+              placeholder="100"
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-semibold text-slate-700">Uzunluk (m)</label>
+            <label className="mb-1 block text-sm font-semibold text-slate-700">Genişlik (m)</label>
             <input
               type="number"
-              value={newOrder.lengthM}
-              onChange={(event) => onNewOrderChange((prev) => ({ ...prev, lengthM: Number(event.target.value) }))}
+              min={0.5}
+              step={0.5}
+              value={newOrder.widthM}
+              onChange={(event) => onNewOrderChange((prev) => ({ ...prev, widthM: Number(event.target.value) || 1 }))}
               className="w-full rounded-lg border border-slate-200 p-2.5 text-sm"
-              title="Toplam şerit uzunluğu (m)"
+              placeholder="1"
+              title="Panel genişliği, metre"
             />
           </div>
           <div className="col-span-2">
-            <label className="mb-1 block text-sm font-semibold text-slate-700">Panel uzunluğu (m)</label>
+            <label className="mb-1 block text-sm font-semibold text-slate-700">Kesim uzunluğu (m)</label>
             <input
               type="number"
-              min={0.01}
-              step={0.1}
+              min={0.5}
+              step={0.5}
               value={newOrder.panelLengthM ?? 1}
               onChange={(event) => onNewOrderChange((prev) => ({ ...prev, panelLengthM: Number(event.target.value) || 1 }))}
               className="w-full rounded-lg border border-slate-200 p-2.5 text-sm"
               placeholder="1"
-              title="Kesim uzunluğu; bu uzunluk ve katları kesilir (örn. 3m → 3*33+1 fire)"
+              title="Kesim uzunluğu; bu uzunluk ve katları kesilir"
             />
             <p className="mt-1 text-xs text-slate-500">
-              Bu uzunluk ve katları şeklinde kesilir (örn. 100 m² rulo 3 m ile → 33 adet 3 m + 1 m fire).
+              Bu uzunluk ve katları şeklinde kesilir. Ağırlık malzeme ve kalınlığa göre hesaplanır.
             </p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="mb-1 block text-sm font-semibold text-slate-700">Ağırlık (ton)</label>
-            <input
-              type="number"
-              step={0.01}
-              value={newOrder.weightTon}
-              onChange={(event) => onNewOrderChange((prev) => ({ ...prev, weightTon: Number(event.target.value) }))}
+            <label className="mb-1 block text-sm font-semibold text-slate-700">Malzeme</label>
+            <select
+              value={newOrder.material}
+              onChange={(event) => onNewOrderChange((prev) => ({ ...prev, material: event.target.value as NewOrderForm['material'] }))}
               className="w-full rounded-lg border border-slate-200 p-2.5 text-sm"
-            />
+            >
+              <option value="galvaniz">Galvaniz</option>
+              <option value="aluminyum">Alüminyum</option>
+            </select>
           </div>
           <div>
+            <label className="mb-1 block text-sm font-semibold text-slate-700">Kalınlık (mm)</label>
+            <input
+              type="number"
+              min={0.1}
+              step={0.01}
+              value={newOrder.thicknessMm}
+              onChange={(event) => onNewOrderChange((prev) => ({ ...prev, thicknessMm: Number(event.target.value) || 0.75 }))}
+              className="w-full rounded-lg border border-slate-200 p-2.5 text-sm"
+              placeholder="0.75"
+            />
+          </div>
+          <div className="col-span-2">
             <label className="mb-1 block text-sm font-semibold text-slate-700">Öncelik</label>
             <select
               value={newOrder.priority}

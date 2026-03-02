@@ -27,6 +27,14 @@ const INITIAL_ORDERS = [
   { id: 'S1', m2: 1000, panelWidth: 1.0, panelLength: 1 },
 ];
 
+/** Yükleme sırasında gösterilen aşamalı durum mesajları. */
+const LOADING_STEPS = ['Analiz ediliyor...', 'Hesaplanıyor...', 'Sonuçlar getiriliyor...'] as const;
+
+/** Verilen süre kadar (ms) bekleme yapan yardımcı fonksiyon. */
+function waitMs(durationMs: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, durationMs));
+}
+
 /**
  * Konfigürasyon formu: tüm inputları toplar, API çağrısı yapar, sonucu context'e yazar.
  */
@@ -56,6 +64,7 @@ export function ConfigurationForm() {
   const [stockSets, setStockSets] = useState<SavedStockSet[]>([]);
   const [selectedOrderSetId, setSelectedOrderSetId] = useState('');
   const [selectedStockSetId, setSelectedStockSetId] = useState('');
+  const [loadingStep, setLoadingStep] = useState(0);
 
   /**
    * Konfigürasyon ekranında kullanılacak sipariş/stok setlerini yükler.
@@ -168,6 +177,37 @@ export function ConfigurationForm() {
   }, [loadPresetSets]);
 
   /**
+   * Optimizasyon devam ederken kullanıcıya aşamalı durum mesajları gösterir.
+   */
+  useEffect(() => {
+    if (!isLoading) {
+      setLoadingStep(0);
+      return;
+    }
+
+    const durations = [3000, 4000, 3000];
+    let currentIndex = 0;
+    let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const tick = () => {
+      if (cancelled) return;
+      setLoadingStep(currentIndex);
+      timeoutId = setTimeout(() => {
+        currentIndex = (currentIndex + 1) % LOADING_STEPS.length;
+        tick();
+      }, durations[currentIndex % durations.length]);
+    };
+
+    tick();
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [isLoading]);
+
+  /**
    * Seçilen sipariş setini manuel forma uygular.
    */
   const applyOrderSet = useCallback(
@@ -219,7 +259,17 @@ export function ConfigurationForm() {
 
     try {
       const request = buildOptimizeRequest(validOrders);
+      const minDelayMs = 10000;
+      const maxDelayMs = 20000;
+      const startTime = performance.now();
       const result = await optimize(request);
+      const targetTotal =
+        minDelayMs + Math.random() * (Math.max(maxDelayMs, minDelayMs) - minDelayMs);
+      const elapsed = performance.now() - startTime;
+      const remaining = targetTotal - elapsed;
+      if (remaining > 0) {
+        await waitMs(remaining);
+      }
       setLastResult(result);
       router.push(`/dashboard/sonuc/${result.fileId}`);
     } catch (err) {
@@ -247,8 +297,10 @@ export function ConfigurationForm() {
             <span className="material-symbols-outlined text-5xl text-primary animate-spin">
               progress_activity
             </span>
-            <p className="text-lg font-semibold text-slate-700">Hesaplanıyor...</p>
-            <p className="text-sm text-slate-500">En fazla 2 dakika sürebilir</p>
+            <p className="text-lg font-semibold text-slate-700 animate-pulse">
+              {LOADING_STEPS[loadingStep]}
+            </p>
+            <p className="text-sm text-slate-500">Bu işlem 10–20 saniye sürebilir</p>
           </div>
         </div>
       )}

@@ -1,5 +1,20 @@
 import type { SavedOrderSet } from '@/lib/api';
-import type { OrderPipelineRow } from './types';
+import type { MaterialType, OrderPipelineRow } from './types';
+
+/** Malzeme yoğunlukları (kg/m³); ağırlık hesaplamada kullanılır. */
+export const MATERIAL_DENSITY_KG_M3: Record<MaterialType, number> = {
+  galvaniz: 7850,
+  aluminyum: 2700,
+};
+
+/**
+ * m², kalınlık ve malzemeden ağırlığı (ton) hesaplar.
+ * weightTon = m2 * (thicknessMm/1000) * (density/1000)
+ */
+export function calcWeightTon(m2: number, thicknessMm: number, material: MaterialType): number {
+  const density = MATERIAL_DENSITY_KG_M3[material];
+  return (m2 * (thicknessMm / 1000) * density) / 1000;
+}
 
 /** Öncelik etiket sınıfını döndürür. */
 export function getPriorityBadge(priority: OrderPipelineRow['priority']): string {
@@ -68,7 +83,7 @@ export function toApiOrderRow(
   };
 }
 
-/** API order satırını pipeline satırına dönüştürür. */
+/** API order satırını pipeline satırına dönüştürür. (API'de malzeme/kalınlık yok; ağırlık tahmini.) */
 export function fromApiOrderRow(
   row: { orderId?: string; m2: number; panelWidth: number; panelLength?: number },
   index: number,
@@ -77,12 +92,15 @@ export function fromApiOrderRow(
   const m2 = Number(row.m2 || 0);
   const lengthM = panelWidth > 0 ? m2 / panelWidth : 1;
   const panelLengthM = Number(row.panelLength ?? 1);
+  const widthMm = Math.max(1, Math.round(panelWidth * 1000));
+  /** Galvaniz 0.75 mm varsayımı ile tahmini ağırlık */
+  const weightTon = Number((calcWeightTon(m2, 0.75, 'galvaniz')).toFixed(2));
   return {
     id: row.orderId?.trim() || `ORD-${new Date().getFullYear()}-${String(index + 1).padStart(3, '0')}`,
-    widthMm: Math.max(1, Math.round(panelWidth * 1000)),
+    widthMm,
     lengthM: Number(lengthM.toFixed(2)),
     panelLengthM: panelLengthM > 0 ? panelLengthM : 1,
-    weightTon: Number((m2 * 0.007).toFixed(2)),
+    weightTon,
     priority: 'Medium',
     status: 'Pending',
   };

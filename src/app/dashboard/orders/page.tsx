@@ -12,6 +12,7 @@ import {
   ProjectsTable,
   fromApiOrderRow,
   toApiOrderRow,
+  calcWeightTon,
   type NewOrderForm,
   type OrderPipelineRow,
 } from '@/components/dashboard/orders';
@@ -23,10 +24,11 @@ export default function OrdersPage() {
   const [rows, setRows] = useState<OrderPipelineRow[]>([]);
   const [newOrder, setNewOrder] = useState<NewOrderForm>({
     id: '',
-    widthMm: 1250,
-    lengthM: 6,
+    m2: 100,
+    widthM: 1,
     panelLengthM: 1,
-    weightTon: 2.5,
+    material: 'galvaniz',
+    thicknessMm: 0.75,
     priority: 'Medium',
   });
   const [setName, setSetName] = useState('');
@@ -67,10 +69,11 @@ export default function OrdersPage() {
   function resetNewOrderForm() {
     setNewOrder({
       id: '',
-      widthMm: 1250,
-      lengthM: 6,
+      m2: 100,
+      widthM: 1,
       panelLengthM: 1,
-      weightTon: 2.5,
+      material: 'galvaniz',
+      thicknessMm: 0.75,
       priority: 'Medium',
     });
   }
@@ -86,12 +89,15 @@ export default function OrdersPage() {
    * Modal içindeki siparişi ekler veya düzenleme modunda günceller.
    */
   function handleUpsertOrderInDraft() {
-    const widthMm = Math.max(1, Number(newOrder.widthMm) || 1);
-    const lengthM = Math.max(0.1, Number(newOrder.lengthM) || 0.1);
-    const weightTon = Math.max(0.01, Number(newOrder.weightTon) || 0.01);
+    const m2 = Math.max(0.01, Number(newOrder.m2) || 0.01);
+    const widthM = Math.max(0.01, Number(newOrder.widthM) || 1);
+    const panelLengthM = Math.max(0.01, Number(newOrder.panelLengthM) || 1);
+    const thicknessMm = Math.max(0.1, Number(newOrder.thicknessMm) || 0.75);
+    const widthMm = Math.round(widthM * 1000);
+    const lengthM = widthM > 0 ? Number((m2 / widthM).toFixed(4)) : 1;
+    const weightTon = Number(calcWeightTon(m2, thicknessMm, newOrder.material).toFixed(4));
     const fallbackId = `ORD-${new Date().getFullYear()}-${String(rows.length + 1).padStart(3, '0')}`;
     const id = newOrder.id.trim() || fallbackId;
-    const panelLengthM = Math.max(0.01, Number(newOrder.panelLengthM) || 1);
     const candidate: OrderPipelineRow = {
       id,
       widthMm,
@@ -100,6 +106,8 @@ export default function OrdersPage() {
       weightTon,
       priority: newOrder.priority,
       status: 'Pending',
+      material: newOrder.material,
+      thicknessMm,
     };
     if (editingOrderIndex != null) {
       setRows((prev) => prev.map((item, index) => (index === editingOrderIndex ? candidate : item)));
@@ -238,12 +246,14 @@ export default function OrdersPage() {
     setRows(mappedRows);
     setEditingProjectId(setItem.id);
     setEditingOrderIndex(orderIndex);
+    const m2 = (target.widthMm / 1000) * target.lengthM;
     setNewOrder({
       id: target.id,
-      widthMm: target.widthMm,
-      lengthM: target.lengthM,
+      m2: Number(m2.toFixed(2)),
+      widthM: target.widthMm / 1000,
       panelLengthM: target.panelLengthM ?? 1,
-      weightTon: target.weightTon,
+      material: target.material ?? 'galvaniz',
+      thicknessMm: target.thicknessMm ?? 0.75,
       priority: target.priority,
     });
     setIsProjectModalOpen(true);
@@ -279,12 +289,14 @@ export default function OrdersPage() {
     const target = rows[orderIndex];
     if (!target) return;
     setEditingOrderIndex(orderIndex);
+    const m2 = (target.widthMm / 1000) * target.lengthM;
     setNewOrder({
       id: target.id,
-      widthMm: target.widthMm,
-      lengthM: target.lengthM,
+      m2: Number(m2.toFixed(2)),
+      widthM: target.widthMm / 1000,
       panelLengthM: target.panelLengthM ?? 1,
-      weightTon: target.weightTon,
+      material: target.material ?? 'galvaniz',
+      thicknessMm: target.thicknessMm ?? 0.75,
       priority: target.priority,
     });
   }
