@@ -37,7 +37,7 @@ export function CostParametersCard({
               className="block w-full rounded-lg border border-slate-300 pl-8 focus:border-secondary focus:ring-2 focus:ring-secondary/30 sm:text-sm py-2.5 transition-all duration-200"
               placeholder="0.00"
               type="number"
-              step="0.01"
+              step="1"
               value={fireCost}
               onChange={
                 onFireCostChange
@@ -59,7 +59,7 @@ export function CostParametersCard({
               className="block w-full rounded-lg border border-slate-300 pl-8 focus:border-secondary focus:ring-2 focus:ring-secondary/30 sm:text-sm py-2.5 transition-all duration-200"
               placeholder="0.00"
               type="number"
-              step="0.01"
+              step="1"
               value={setupCost}
               onChange={
                 onSetupCostChange
@@ -82,7 +82,7 @@ export function CostParametersCard({
               placeholder="0"
               type="number"
               min={0}
-              step={1}
+              step="1"
               value={stockCost}
               onChange={
                 onStockCostChange
