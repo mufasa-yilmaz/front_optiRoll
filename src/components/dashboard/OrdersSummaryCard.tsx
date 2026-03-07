@@ -33,6 +33,10 @@ export interface OrdersSummaryCardProps {
   selectedOrderSetId?: string;
   /** Hazır sipariş seti seçildiğinde çağrılır */
   onOrderSetSelect?: (setId: string) => void;
+  /** Sipariş listesi eksik/hatali ise true olur */
+  hasOrdersError?: boolean;
+  /** Doğrulama tekrar tetiklendiğinde animasyonu yeniden başlatmak için key */
+  blinkValidationKey?: number;
 }
 
 /** Benzersiz sipariş ID üretir */
@@ -56,6 +60,8 @@ export function OrdersSummaryCard({
   orderSets = [],
   selectedOrderSetId = '',
   onOrderSetSelect,
+  hasOrdersError,
+  blinkValidationKey,
 }: OrdersSummaryCardProps) {
   const formatNumber = (n: number, decimals = 2) =>
     n.toLocaleString('tr-TR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
@@ -90,7 +96,15 @@ export function OrdersSummaryCard({
     >
       <div className="px-6 py-4 border-b border-slate-100 bg-third/50">
         <div className="flex items-center justify-between gap-4 flex-wrap">
-          <h2 className="text-lg font-bold text-primary font-display">Siparişler</h2>
+          <h2 className="text-lg font-bold text-primary font-display flex items-center gap-1">
+            <span>Siparişler</span>
+            <span
+              className="material-symbols-outlined text-[16px] text-primary/70 cursor-help"
+              title="Optimizasyonda kullanılacak müşteri siparişleri; m², genişlik ve kesim uzunluğu ile tanımlanır."
+            >
+              info
+            </span>
+          </h2>
           <div className="flex gap-3 items-center flex-wrap">
             <span className="text-xs font-medium text-slate-400">
               {orders.length} sipariş
@@ -123,7 +137,12 @@ export function OrdersSummaryCard({
           </div>
         </div>
       </div>
-      <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0 max-h-[min(60vh,480px)]">
+      <div
+        className={`overflow-x-auto overflow-y-auto flex-1 min-h-0 max-h-[min(60vh,480px)] ${
+          hasOrdersError ? 'border border-accent-red border-t-0 animate-input-blink-error' : ''
+        }`}
+        key={hasOrdersError ? `orders-${blinkValidationKey}` : 'orders'}
+      >
         <table className="min-w-full divide-y divide-slate-200">
           <thead className="bg-slate-50">
             <tr>
@@ -137,25 +156,57 @@ export function OrdersSummaryCard({
                 className="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider"
                 scope="col"
               >
-                Talep (m²)
+                <span className="inline-flex items-center gap-1">
+                  <span>Talep (m²)</span>
+                  <span
+                    className="material-symbols-outlined text-[14px] text-slate-400 cursor-help"
+                    title="İlgili sipariş için istenen toplam metrekare talebi."
+                  >
+                    info
+                  </span>
+                </span>
               </th>
               <th
                 className="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider"
                 scope="col"
               >
-                Panel Genişliği (m)
+                <span className="inline-flex items-center gap-1">
+                  <span>Panel Genişliği (m)</span>
+                  <span
+                    className="material-symbols-outlined text-[14px] text-slate-400 cursor-help"
+                    title="Panellerin rulo genişliği yönündeki ölçüsü (metre)."
+                  >
+                    info
+                  </span>
+                </span>
               </th>
               <th
                 className="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider"
                 scope="col"
               >
-                Kesim Uzunluğu (m)
+                <span className="inline-flex items-center gap-1">
+                  <span>Kesim Uzunluğu (m)</span>
+                  <span
+                    className="material-symbols-outlined text-[14px] text-slate-400 cursor-help"
+                    title="Tek panel boyu; bu uzunluk ve katları kesilir (ör. 3 m)."
+                  >
+                    info
+                  </span>
+                </span>
               </th>
               <th
                 className="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider"
                 scope="col"
               >
-                Talep (ton)
+                <span className="inline-flex items-center gap-1">
+                  <span>Talep (ton)</span>
+                  <span
+                    className="material-symbols-outlined text-[14px] text-slate-400 cursor-help"
+                    title="Metrekare talebi, kalınlık ve yoğunluk kullanılarak hesaplanan tahmini tonaj."
+                  >
+                    info
+                  </span>
+                </span>
               </th>
               {editable && (
                 <th className="px-4 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider w-12" scope="col" />

@@ -21,6 +21,10 @@ export interface RollSettingsCardProps {
   selectedStockSetId?: string;
   /** Hazır stok seti seçildiğinde çağrılır */
   onStockSetSelect?: (setId: string) => void;
+  /** Rulo listesi eksik/hatali ise true olur */
+  hasRollsError?: boolean;
+  /** Doğrulama tekrar tetiklendiğinde animasyonu yeniden başlatmak için key */
+  blinkValidationKey?: number;
 }
 
 /**
@@ -33,6 +37,8 @@ export function RollSettingsCard({
   stockSets = [],
   selectedStockSetId = '',
   onStockSetSelect,
+  hasRollsError,
+  blinkValidationKey,
 }: RollSettingsCardProps) {
   const total = rolls.reduce((s, r) => s + r, 0);
   const showStockSetSelect = stockSets.length > 0 && onStockSetSelect;
@@ -89,10 +95,22 @@ export function RollSettingsCard({
   return (
     <DashboardCard title="Rulo Stoku" icon="inventory_2" animationDelayMs={75} headerRight={headerRight}>
       <div className="space-y-4">
-        <label className="block text-xs font-medium text-slate-600">
-          Rulo Ağırlıkları (ton)
+        <label className="block text-xs font-medium text-slate-600 flex items-center gap-1">
+          <span>Rulo Ağırlıkları (ton)</span>
+          <span
+            className="material-symbols-outlined text-[14px] text-slate-400 cursor-help"
+            title="Her rulo için toplam tonaj. Mevcut stok kapasitesini ve açılan rulo sayısını etkiler."
+          >
+            info
+          </span>
         </label>
-        <div ref={listRef} className="space-y-2 max-h-48 overflow-y-auto">
+        <div
+          ref={listRef}
+          className={`space-y-2 max-h-48 overflow-y-auto ${
+            hasRollsError ? 'border border-accent-red rounded-md animate-input-blink-error' : ''
+          }`}
+          key={hasRollsError ? `rolls-${blinkValidationKey}` : 'rolls'}
+        >
           {rolls.length === 0 ? (
             <p className="text-sm text-slate-500 py-4 text-center">
               Rulo eklemek için &quot;Rulo Ekle&quot; butonuna tıklayın

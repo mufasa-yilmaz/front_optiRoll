@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 
 /**
  * Dashboard alanı layout header: OptiRoll logosu,
- * Dashboard, Konfigürasyon, Geçmiş linkleri ve Çıkış Yap.
+ * Dashboard, Optimizasyon, Geçmiş linkleri ve Çıkış Yap.
  */
 export function DashboardLayoutHeader() {
   const pathname = usePathname();
@@ -70,7 +70,7 @@ export function DashboardLayoutHeader() {
                   : 'text-gray-600 hover:text-primary'
               }`}
             >
-              Konfigürasyon
+              Optimizasyon
             </Link>
             <Link
               href="#"

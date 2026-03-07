@@ -9,25 +9,40 @@ export interface ScenarioSelectionCardProps {
   onMaxOrdersPerRollChange?: (v: number) => void;
   maxRollsPerOrder?: number;
   onMaxRollsPerOrderChange?: (v: number) => void;
+  /** 1 rulodaki sipariş sayısı alanı eksik/hatali ise true olur */
+  hasMaxOrdersPerRollError?: boolean;
+  /** 1 sipariş için rulo sayısı alanı eksik/hatali ise true olur */
+  hasMaxRollsPerOrderError?: boolean;
+  /** Doğrulama tekrar tetiklendiğinde animasyonu yeniden başlatmak için key */
+  blinkValidationKey?: number;
 }
 
 /**
  * Senaryo seçimi kartı: optimizasyon stratejisi, güvenlik stoğu ve rulo/sipariş limitleri.
  */
 export function ScenarioSelectionCard({
-  safetyStock = 12,
+  safetyStock = 0,
   onSafetyStockChange,
-  maxOrdersPerRoll = 2,
+  maxOrdersPerRoll,
   onMaxOrdersPerRollChange,
-  maxRollsPerOrder = 2,
+  maxRollsPerOrder,
   onMaxRollsPerOrderChange,
+  hasMaxOrdersPerRollError,
+  hasMaxRollsPerOrderError,
+  blinkValidationKey,
 }: ScenarioSelectionCardProps) {
   return (
     <DashboardCard title="Senaryo Seçimi" icon="tune" animationDelayMs={100}>
       <div className="space-y-6">
         <div>
-          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-            Optimizasyon Stratejisi
+          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+            <span>Optimizasyon Stratejisi</span>
+            <span
+              className="material-symbols-outlined text-[14px] text-slate-400 cursor-help"
+              title="Modelin önceliğini belirler: fireyi azalt, hızı artır veya dengeli yaklaşım."
+            >
+              info
+            </span>
           </label>
           <div className="relative">
             <select className="block w-full appearance-none rounded-lg border border-slate-300 bg-white py-3 pl-4 pr-10 text-sm focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/30 transition-all duration-200">
@@ -43,7 +58,15 @@ export function ScenarioSelectionCard({
         <div className="space-y-4 pt-2 border-t border-slate-100">
           <div>
             <div className="flex justify-between mb-2">
-              <label className="text-xs font-medium text-slate-600">Güvenlik Stoğu %</label>
+              <label className="text-xs font-medium text-slate-600 flex items-center gap-1">
+                <span>Güvenlik Stoğu %</span>
+                <span
+                  className="material-symbols-outlined text-[14px] text-slate-400 cursor-help"
+                  title="Talep üzeri ekstra üretim yüzdesi; tedarik riskine karşı ek stok."
+                >
+                  info
+                </span>
+              </label>
               <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">
                 {safetyStock}%
               </span>
@@ -63,17 +86,28 @@ export function ScenarioSelectionCard({
           </div>
           <div className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1.5">
-                1 ruloda maksimum kaç farklı sipariş?
+              <label className="block text-xs font-medium text-slate-600 mb-1.5 flex items-center gap-1">
+                <span>1 ruloda maksimum kaç farklı sipariş?</span>
+                <span
+                  className="material-symbols-outlined text-[14px] text-slate-400 cursor-help"
+                  title="Aynı rulo üzerinde en fazla kaç farklı sipariş kombinasyonu kullanılacağını sınırlar."
+                >
+                  info
+                </span>
               </label>
               <p className="text-[11px] text-slate-400 mb-1.5">
                 Bir rulo en fazla kaç farklı siparişe kesilebilir
               </p>
               <input
-                className="block w-full rounded-md border border-slate-300 text-sm py-2 px-3 focus:ring-2 focus:ring-secondary/30 focus:border-secondary transition-all"
+                key={hasMaxOrdersPerRollError ? `maxOrders-${blinkValidationKey}` : 'maxOrders'}
+                className={`block w-full rounded-md border text-sm py-2 px-3 focus:ring-2 focus:ring-secondary/30 focus:border-secondary transition-all ${
+                  hasMaxOrdersPerRollError
+                    ? 'border-accent-red animate-input-blink-error'
+                    : 'border-slate-300'
+                }`}
                 type="number"
                 min={1}
-                value={maxOrdersPerRoll}
+                value={maxOrdersPerRoll ?? ''}
                 onChange={
                   onMaxOrdersPerRollChange
                     ? (e) => onMaxOrdersPerRollChange(Math.max(1, parseInt(e.target.value, 10) || 1))
@@ -82,17 +116,28 @@ export function ScenarioSelectionCard({
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1.5">
-                1 sipariş için maksimum kaç rulo?
+              <label className="block text-xs font-medium text-slate-600 mb-1.5 flex items-center gap-1">
+                <span>1 sipariş için maksimum kaç rulo?</span>
+                <span
+                  className="material-symbols-outlined text-[14px] text-slate-400 cursor-help"
+                  title="Tek bir siparişin en fazla kaç farklı rulo üzerinden karşılanacağını belirler."
+                >
+                  info
+                </span>
               </label>
               <p className="text-[11px] text-slate-400 mb-1.5">
                 Bir sipariş en fazla kaç farklı rulodan kesilebilir
               </p>
               <input
-                className="block w-full rounded-md border border-slate-300 text-sm py-2 px-3 focus:ring-2 focus:ring-secondary/30 focus:border-secondary transition-all"
+                key={hasMaxRollsPerOrderError ? `maxRolls-${blinkValidationKey}` : 'maxRolls'}
+                className={`block w-full rounded-md border text-sm py-2 px-3 focus:ring-2 focus:ring-secondary/30 focus:border-secondary transition-all ${
+                  hasMaxRollsPerOrderError
+                    ? 'border-accent-red animate-input-blink-error'
+                    : 'border-slate-300'
+                }`}
                 type="number"
                 min={1}
-                value={maxRollsPerOrder}
+                value={maxRollsPerOrder ?? ''}
                 onChange={
                   onMaxRollsPerOrderChange
                     ? (e) => onMaxRollsPerOrderChange(Math.max(1, parseInt(e.target.value, 10) || 1))

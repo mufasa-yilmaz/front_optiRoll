@@ -1,8 +1,8 @@
 import Link from 'next/link';
 
 /**
- * Konfigürasyon sayfası üst başlığı: OptiRoll Giriş Parametreleri,
- * Dashboard / Konfigürasyon / Geçmiş navigasyonu ve kullanıcı avatarları.
+ * Optimizasyon sayfası üst başlığı: OptiRoll Giriş Parametreleri,
+ * Dashboard / Optimizasyon / Geçmiş navigasyonu ve kullanıcı avatarları.
  */
 export function ConfigurationHeader() {
   return (
@@ -33,7 +33,7 @@ export function ConfigurationHeader() {
               href="/dashboard/configuration"
               className="text-primary"
             >
-              Konfigürasyon
+              Optimizasyon
             </Link>
             <Link
               href="#"

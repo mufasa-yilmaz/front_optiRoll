@@ -25,7 +25,7 @@ export function SonucEmptyBanner() {
             Henüz optimizasyon çalıştırılmadı
           </p>
           <p className="text-sm text-amber-800 mt-0.5">
-            Sonuçları görmek için Konfigürasyon sayfasından optimizasyonu çalıştırın.
+            Sonuçları görmek için Optimizasyon sayfasından modeli çalıştırın.
           </p>
         </div>
       </div>
@@ -34,7 +34,7 @@ export function SonucEmptyBanner() {
         className="shrink-0 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
       >
         <span className="material-symbols-outlined text-[18px]">settings</span>
-        Konfigürasyona Git
+        Optimizasyona Git
       </Link>
     </div>
   );

@@ -22,10 +22,8 @@ import {
 } from '@/lib/api';
 import { useOptimization } from '@/contexts/OptimizationContext';
 
-/** Başlangıçta boş veya tek örnek sipariş - kullanıcı ekleyecek */
-const INITIAL_ORDERS = [
-  { id: 'S1', m2: 1000, panelWidth: 1.0, panelLength: 1 },
-];
+/** Başlangıçta sipariş listesi boş - kullanıcı ekleyecek */
+const INITIAL_ORDERS: { id: string; m2: number; panelWidth: number; panelLength?: number }[] = [];
 
 /** Yükleme sırasında gösterilen aşamalı durum mesajları. */
 const LOADING_STEPS = ['Analiz ediliyor...', 'Hesaplanıyor...', 'Sonuçlar getiriliyor...'] as const;
@@ -43,21 +41,23 @@ export function ConfigurationForm() {
   const searchParams = useSearchParams();
   const { setLastResult, setLoading, setError, isLoading } = useOptimization();
 
-  const [thickness, setThickness] = useState(0.75);
-  const [density, setDensity] = useState(7850);
-  const [safetyStock, setSafetyStock] = useState(12);
-  const [maxOrdersPerRoll, setMaxOrdersPerRoll] = useState(2);
-  const [maxRollsPerOrder, setMaxRollsPerOrder] = useState(2);
-  const [rolls, setRolls] = useState<number[]>([10, 10, 10]);
-  const [fireCost, setFireCost] = useState(450);
-  const [setupCost, setSetupCost] = useState(120);
-  const [stockCost, setStockCost] = useState(2.5);
+  const [thickness, setThickness] = useState<number | undefined>(undefined);
+  const [density, setDensity] = useState<number | undefined>(undefined);
+  const [safetyStock, setSafetyStock] = useState<number | undefined>(undefined);
+  const [maxOrdersPerRoll, setMaxOrdersPerRoll] = useState<number | undefined>(undefined);
+  const [maxRollsPerOrder, setMaxRollsPerOrder] = useState<number | undefined>(undefined);
+  const [rolls, setRolls] = useState<number[]>([]);
+  const [fireCost, setFireCost] = useState<number | undefined>(undefined);
+  const [setupCost, setSetupCost] = useState<number | undefined>(undefined);
+  const [stockCost, setStockCost] = useState<number | undefined>(undefined);
   const [orders, setOrders] = useState<{ id: string; m2: number; panelWidth: number; panelLength?: number }[]>(INITIAL_ORDERS);
 
-  const densityGcm3 = density / 1000;
+  const densityGcm3 = density ? density / 1000 : 0;
   const estimatedNeedTon =
-    orders.reduce((sum, o) => sum + o.m2 * (thickness / 1000) * densityGcm3, 0) *
-    (1 + safetyStock / 100);
+    thickness && density
+      ? orders.reduce((sum, o) => sum + o.m2 * (thickness / 1000) * (density / 1000), 0) *
+        (1 + (safetyStock ?? 0) / 100)
+      : 0;
   const [configurationId, setConfigurationId] = useState<string | null>(null);
   const [isLoadingConfiguration, setIsLoadingConfiguration] = useState(false);
   const [orderSets, setOrderSets] = useState<SavedOrderSet[]>([]);
@@ -65,6 +65,21 @@ export function ConfigurationForm() {
   const [selectedOrderSetId, setSelectedOrderSetId] = useState('');
   const [selectedStockSetId, setSelectedStockSetId] = useState('');
   const [loadingStep, setLoadingStep] = useState(0);
+
+  type MissingFieldKey =
+    | 'thickness'
+    | 'density'
+    | 'safetyStock'
+    | 'maxOrdersPerRoll'
+    | 'maxRollsPerOrder'
+    | 'fireCost'
+    | 'setupCost'
+    | 'stockCost'
+    | 'orders'
+    | 'rolls';
+
+  const [missingFields, setMissingFields] = useState<MissingFieldKey[]>([]);
+  const [validationBlinkKey, setValidationBlinkKey] = useState(0);
 
   /**
    * Konfigürasyon ekranında kullanılacak sipariş/stok setlerini yükler.
@@ -88,24 +103,86 @@ export function ConfigurationForm() {
   }, [orders]);
 
   /**
+   * Konfigürasyon formu için zorunlu alanları kontrol eder, eksik/uygunsuz olanları döner.
+   */
+  const validateRequiredFields = useCallback((): MissingFieldKey[] => {
+    const missing: MissingFieldKey[] = [];
+
+    if (!thickness || thickness <= 0) {
+      missing.push('thickness');
+    }
+
+    if (!density || density <= 0) {
+      missing.push('density');
+    }
+
+    if (safetyStock == null) {
+      missing.push('safetyStock');
+    }
+
+    if (!maxOrdersPerRoll || maxOrdersPerRoll <= 0) {
+      missing.push('maxOrdersPerRoll');
+    }
+
+    if (!maxRollsPerOrder || maxRollsPerOrder <= 0) {
+      missing.push('maxRollsPerOrder');
+    }
+
+    if (!fireCost || fireCost <= 0) {
+      missing.push('fireCost');
+    }
+
+    if (!setupCost || setupCost <= 0) {
+      missing.push('setupCost');
+    }
+
+    if (stockCost == null) {
+      missing.push('stockCost');
+    }
+
+    const validOrders = getValidOrders();
+    if (orders.length === 0 || validOrders.length === 0) {
+      missing.push('orders');
+    }
+
+    if (rolls.length === 0 || rolls.some((r) => r <= 0)) {
+      missing.push('rolls');
+    }
+
+    return missing;
+  }, [
+    thickness,
+    density,
+    safetyStock,
+    maxOrdersPerRoll,
+    maxRollsPerOrder,
+    fireCost,
+    setupCost,
+    stockCost,
+    orders,
+    rolls,
+    getValidOrders,
+  ]);
+
+  /**
    * Form alanlarından optimize isteği payload'ını oluşturur.
    */
   const buildOptimizeRequest = useCallback(
     (validOrders: { id: string; m2: number; panelWidth: number; panelLength?: number }[]): OptimizeRequest => {
       return {
-        material: { thickness, density: densityGcm3 },
-        safetyStock,
+        material: { thickness: thickness ?? 0, density: densityGcm3 },
+        safetyStock: safetyStock ?? 0,
         configurationId: configurationId ?? undefined,
         orders: validOrders.map((o) => ({ m2: o.m2, panelWidth: o.panelWidth, panelLength: o.panelLength ?? 1 })),
         rollSettings: {
           rolls: rolls.filter((r) => r > 0),
-          maxOrdersPerRoll,
-          maxRollsPerOrder,
+          maxOrdersPerRoll: maxOrdersPerRoll ?? 0,
+          maxRollsPerOrder: maxRollsPerOrder ?? 0,
         },
         costs: {
-          fireCost,
-          setupCost,
-          stockCost,
+          fireCost: fireCost ?? 0,
+          setupCost: setupCost ?? 0,
+          stockCost: stockCost ?? 0,
         },
       };
     },
@@ -135,20 +212,20 @@ export function ConfigurationForm() {
         setIsLoadingConfiguration(true);
         const cfg = await getConfigurationById(qConfigurationId);
         setConfigurationId(cfg.id);
-        setThickness(Number(cfg.material_thickness) || 0.75);
+        setThickness(Number(cfg.material_thickness) || undefined);
         const densityValue = Number(cfg.material_density) || 7.85;
         // Geriye dönük uyumluluk: DB'deki değer 7.85 (g/cm3) veya 7850 (kg/m3) olabilir.
         setDensity(densityValue > 100 ? densityValue : densityValue * 1000);
-        setSafetyStock(Number(cfg.safety_stock) || 0);
-        setMaxOrdersPerRoll(Number(cfg.max_orders_per_roll) || 1);
-        setMaxRollsPerOrder(Number(cfg.max_rolls_per_order) || 1);
-        setFireCost(Number(cfg.fire_cost) || 0);
-        setSetupCost(Number(cfg.setup_cost) || 0);
-        setStockCost(Number(cfg.stock_cost) || 0);
+        setSafetyStock(Number(cfg.safety_stock));
+        setMaxOrdersPerRoll(Number(cfg.max_orders_per_roll) || undefined);
+        setMaxRollsPerOrder(Number(cfg.max_rolls_per_order) || undefined);
+        setFireCost(Number(cfg.fire_cost) || undefined);
+        setSetupCost(Number(cfg.setup_cost) || undefined);
+        setStockCost(Number(cfg.stock_cost));
         setRolls(
           Array.isArray(cfg.rolls)
             ? cfg.rolls.map((r) => Number(r)).filter((r) => r > 0)
-            : [10, 10, 10],
+            : [],
         );
         const restoredOrders = Array.isArray(cfg.orders)
           ? cfg.orders
@@ -249,15 +326,31 @@ export function ConfigurationForm() {
   );
 
   const handleSubmit = useCallback(async () => {
-    if (orders.length === 0) {
-      toast.error('En az bir sipariş ekleyin.');
+    const missing = validateRequiredFields();
+    if (missing.length > 0) {
+      setMissingFields(missing);
+      setValidationBlinkKey((prev) => prev + 1);
+
+      const first = missing[0];
+      const messageMap: Partial<Record<MissingFieldKey, string>> = {
+        thickness: 'Malzeme kalınlığını girmeyi unuttunuz.',
+        density: 'Malzeme yoğunluğunu girmeyi unuttunuz.',
+        safetyStock: 'Güvenlik stoğu yüzdesini kontrol edin.',
+        maxOrdersPerRoll: 'Bir rulodaki maksimum sipariş sayısını girmelisiniz.',
+        maxRollsPerOrder: 'Bir sipariş için maksimum rulo sayısını girmelisiniz.',
+        fireCost: 'Fire maliyeti (cf) alanını doldurun.',
+        setupCost: 'Rulo açılış maliyeti (A) alanını doldurun.',
+        stockCost: 'Elde tutma maliyeti (h) alanını doldurun.',
+        orders: 'En az bir geçerli sipariş girmelisiniz.',
+        rolls: 'En az bir rulo tanımlamalısınız.',
+      };
+
+      toast.error(messageMap[first ?? 'orders'] ?? 'Şu noktaları doldurmayı unuttunuz.');
       return;
     }
+
     const validOrders = getValidOrders();
-    if (validOrders.length === 0) {
-      toast.error('Geçerli sipariş bulunamadı. m², panel genişliği ve kesim uzunluğu 0\'dan büyük olmalıdır.');
-      return;
-    }
+
     setLoading(true);
     setError(null);
 
@@ -315,6 +408,9 @@ export function ConfigurationForm() {
             onThicknessChange={setThickness}
             density={density}
             onDensityChange={setDensity}
+            hasThicknessError={missingFields.includes('thickness')}
+            hasDensityError={missingFields.includes('density')}
+            blinkValidationKey={validationBlinkKey}
           />
           <ScenarioSelectionCard
             safetyStock={safetyStock}
@@ -323,6 +419,9 @@ export function ConfigurationForm() {
             onMaxOrdersPerRollChange={setMaxOrdersPerRoll}
             maxRollsPerOrder={maxRollsPerOrder}
             onMaxRollsPerOrderChange={setMaxRollsPerOrder}
+            hasMaxOrdersPerRollError={missingFields.includes('maxOrdersPerRoll')}
+            hasMaxRollsPerOrderError={missingFields.includes('maxRollsPerOrder')}
+            blinkValidationKey={validationBlinkKey}
           />
         </aside>
         <div className="lg:col-span-8 flex flex-col gap-6">
@@ -333,6 +432,10 @@ export function ConfigurationForm() {
             onSetupCostChange={setSetupCost}
             stockCost={stockCost}
             onStockCostChange={setStockCost}
+            hasFireCostError={missingFields.includes('fireCost')}
+            hasSetupCostError={missingFields.includes('setupCost')}
+            hasStockCostError={missingFields.includes('stockCost')}
+            blinkValidationKey={validationBlinkKey}
           />
           <RollSettingsCard
             rolls={rolls}
@@ -341,6 +444,8 @@ export function ConfigurationForm() {
             stockSets={stockSets}
             selectedStockSetId={selectedStockSetId}
             onStockSetSelect={applyStockSet}
+            hasRollsError={missingFields.includes('rolls')}
+            blinkValidationKey={validationBlinkKey}
           />
           <OrdersSummaryCard
             orders={orders}
@@ -350,6 +455,8 @@ export function ConfigurationForm() {
             orderSets={orderSets}
             selectedOrderSetId={selectedOrderSetId}
             onOrderSetSelect={applyOrderSet}
+            hasOrdersError={missingFields.includes('orders')}
+            blinkValidationKey={validationBlinkKey}
           />
         </div>
       </div>

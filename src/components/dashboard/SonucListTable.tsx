@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { deleteRun, getRuns, type RunSummary } from '@/lib/api';
@@ -31,6 +31,11 @@ export function SonucListTable() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
+  const [searchId, setSearchId] = useState('');
+  const [sortKey, setSortKey] = useState<'date' | 'totalCost' | 'totalFire'>('date');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   /**
    * Sonuç listesini API'den yükler.
@@ -73,6 +78,61 @@ export function SonucListTable() {
     loadRuns();
   }, []);
 
+  /**
+   * Filtrelenmiş ve sıralanmış sonuç listesini hesaplar.
+   */
+  const filteredAndSortedRuns = useMemo(() => {
+    const text = searchId.trim().toLowerCase();
+
+    let next = runs;
+    if (text) {
+      next = next.filter((r) => {
+        const file = String(r.file_id ?? '').toLowerCase();
+        const id = String(r.id ?? '').toLowerCase();
+        return file.includes(text) || id.includes(text);
+      });
+    }
+
+    const withSummary = [...next];
+    withSummary.sort((a, b) => {
+      const factor = sortDirection === 'asc' ? 1 : -1;
+      if (sortKey === 'date') {
+        const da = new Date(a.created_at ?? '').getTime() || 0;
+        const db = new Date(b.created_at ?? '').getTime() || 0;
+        return (da - db) * factor;
+      }
+      if (sortKey === 'totalCost') {
+        const ca = a.summary?.totalCost ?? 0;
+        const cb = b.summary?.totalCost ?? 0;
+        return (ca - cb) * factor;
+      }
+      const fa = a.summary?.totalFire ?? 0;
+      const fb = b.summary?.totalFire ?? 0;
+      return (fa - fb) * factor;
+    });
+
+    return withSummary;
+  }, [runs, searchId, sortKey, sortDirection]);
+
+  /**
+   * Sayfalama için aktif sayfa aralığını hesaplar.
+   */
+  const pagedRuns = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize;
+    return filteredAndSortedRuns.slice(start, end);
+  }, [filteredAndSortedRuns, page, pageSize]);
+
+  const totalCount = filteredAndSortedRuns.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize || 1));
+
+  /**
+   * Filtre değiştiğinde sayfa numarasını sıfırlar.
+   */
+  useEffect(() => {
+    setPage(1);
+  }, [searchId, sortKey, sortDirection, pageSize]);
+
   if (loading) {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
@@ -90,7 +150,7 @@ export function SonucListTable() {
         <p className="font-medium text-amber-900">Geçmiş yüklenemedi</p>
         <p className="text-sm text-amber-800 mt-1">{error}</p>
         <p className="text-xs text-amber-700 mt-2">
-          Supabase bağlantısını kontrol edin. Yeni çalıştırmalar Konfigürasyon sayfasından yapılır.
+          Supabase bağlantısını kontrol edin. Yeni çalıştırmalar Optimizasyon sayfasından yapılır.
         </p>
       </div>
     );
@@ -104,14 +164,14 @@ export function SonucListTable() {
         </span>
         <p className="text-gray-600 font-medium">Henüz kayıtlı sonuç yok</p>
         <p className="text-sm text-gray-500 mt-1">
-          Konfigürasyon sayfasından optimizasyon çalıştırdığınızda sonuçlar burada listelenecek.
+          Optimizasyon sayfasından model çalıştırdığınızda sonuçlar burada listelenecek.
         </p>
         <Link
           href="/dashboard/configuration"
           className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition"
         >
           <span className="material-symbols-outlined text-[18px]">tune</span>
-          Konfigürasyona Git
+          Optimizasyona Git
         </Link>
       </div>
     );
@@ -119,13 +179,48 @@ export function SonucListTable() {
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-100 bg-third/30">
-        <h2 className="text-lg font-bold text-primary font-display">
-          Geçmiş Sonuçlar
-        </h2>
-        <p className="text-sm text-gray-500 mt-0.5">
-          Sonuç satırına tıklayarak detayları görüntüleyin
-        </p>
+      <div className="px-6 py-4 border-b border-gray-100 bg-third/30 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-primary font-display">
+            Geçmiş Sonuçlar
+          </h2>
+          <p className="text-sm text-gray-500 mt-0.5">
+            Sonuç satırına tıklayarak detayları görüntüleyin
+          </p>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+          <div className="relative">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">
+              search
+            </span>
+            <input
+              type="text"
+              value={searchId}
+              onChange={(e) => setSearchId(e.target.value)}
+              placeholder="Çalışma ID ile filtrele"
+              className="pl-9 pr-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-secondary/30 focus:border-secondary min-w-[220px]"
+            />
+          </div>
+          <div className="flex gap-2">
+            <select
+              value={sortKey}
+              onChange={(e) => setSortKey(e.target.value as 'date' | 'totalCost' | 'totalFire')}
+              className="px-2 py-2 rounded-lg border border-gray-300 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-secondary/30 focus:border-secondary bg-white"
+            >
+              <option value="date">Tarihe göre</option>
+              <option value="totalCost">Toplam Maliyet</option>
+              <option value="totalFire">Fire (ton)</option>
+            </select>
+            <select
+              value={sortDirection}
+              onChange={(e) => setSortDirection(e.target.value as 'asc' | 'desc')}
+              className="px-2 py-2 rounded-lg border border-gray-300 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-secondary/30 focus:border-secondary bg-white"
+            >
+              <option value="desc">Azalan</option>
+              <option value="asc">Artan</option>
+            </select>
+          </div>
+        </div>
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
@@ -152,7 +247,7 @@ export function SonucListTable() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-100">
-            {runs.map((run) => (
+            {pagedRuns.map((run) => (
               <tr
                 key={run.id}
                 className="hover:bg-third/30 transition-colors group"
@@ -203,6 +298,54 @@ export function SonucListTable() {
             ))}
           </tbody>
         </table>
+      </div>
+      <div className="px-6 py-3 border-t border-gray-100 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between bg-gray-50">
+        <div className="text-xs text-gray-500">
+          {totalCount === 0 ? (
+            'Kayıt bulunamadı'
+          ) : (
+            <>
+              Gösterilen{' '}
+              <span className="font-semibold text-gray-700">
+                {(page - 1) * pageSize + 1}–
+                {Math.min(page * pageSize, totalCount)}
+              </span>{' '}
+              / <span className="font-semibold text-gray-700">{totalCount}</span> kayıt
+            </>
+          )}
+        </div>
+        <div className="flex items-center justify-between sm:justify-end gap-3">
+          <select
+            value={pageSize}
+            onChange={(e) => setPageSize(Number(e.target.value) || 10)}
+            className="px-2 py-1.5 rounded-lg border border-gray-300 text-xs focus:outline-none focus:ring-2 focus:ring-secondary/30 focus:border-secondary bg-white"
+          >
+            <option value={10}>10 / sayfa</option>
+            <option value={25}>25 / sayfa</option>
+            <option value={50}>50 / sayfa</option>
+          </select>
+          <div className="inline-flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="px-2 py-1.5 rounded-l-lg border border-gray-300 bg-white text-xs text-gray-600 hover:bg-gray-100 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+            </button>
+            <span className="px-2 text-xs text-gray-600">
+              {page} / {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="px-2 py-1.5 rounded-r-lg border border-gray-300 bg-white text-xs text-gray-600 hover:bg-gray-100 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
