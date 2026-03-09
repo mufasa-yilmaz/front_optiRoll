@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { calcWeightTon } from './helpers';
 import type { NewOrderForm, OrderPipelineRow } from './types';
 
@@ -33,12 +34,12 @@ export function ProjectOrderEditModal({
     m2: 100,
     widthM: 1,
     panelLengthM: 1,
-    material: 'galvaniz',
+    material: '',
     thicknessMm: 0.75,
-    priority: 'Medium',
+    priority: '',
   });
 
-  /** Modal açıldığında veya initialOrder değiştiğinde formu doldurur. */
+  /** Modal açıldığında veya initialOrder değiştiğinde formu doldurur. Malzeme ve öncelik boş bırakılır; kullanıcı seçmek zorundadır. */
   useEffect(() => {
     if (!isOpen || !initialOrder) return;
     const m2 = (initialOrder.widthMm / 1000) * initialOrder.lengthM;
@@ -47,15 +48,23 @@ export function ProjectOrderEditModal({
       m2: Number(m2.toFixed(2)),
       widthM: initialOrder.widthMm / 1000,
       panelLengthM: initialOrder.panelLengthM ?? 1,
-      material: (initialOrder.material as NewOrderForm['material']) ?? 'galvaniz',
+      material: '',
+      priority: '',
       thicknessMm: initialOrder.thicknessMm ?? 0.75,
-      priority: initialOrder.priority,
     });
   }, [isOpen, initialOrder]);
 
-  /** Formdan OrderPipelineRow üretir ve onSave'e verir; modalı kapatır. */
+  /** Formdan OrderPipelineRow üretir ve onSave'e verir; modalı kapatır. Malzeme ve öncelik boşsa kaydetmeye izin vermez. */
   function handleSubmit() {
     if (!initialOrder) return;
+    if (!form.material) {
+      toast.error('Lütfen malzeme tipini seçin.');
+      return;
+    }
+    if (!form.priority) {
+      toast.error('Lütfen öncelik seviyesini seçin.');
+      return;
+    }
     const m2 = Math.max(0.01, Number(form.m2) || 0.01);
     const widthM = Math.max(0.01, Number(form.widthM) || 1);
     const panelLengthM = Math.max(0.01, Number(form.panelLengthM) || 1);
@@ -159,6 +168,7 @@ export function ProjectOrderEditModal({
                 onChange={(e) => setForm((prev) => ({ ...prev, material: e.target.value as NewOrderForm['material'] }))}
                 className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20"
               >
+                <option value="">Malzeme seçin</option>
                 <option value="galvaniz">Galvaniz</option>
                 <option value="aluminyum">Alüminyum</option>
               </select>
@@ -184,6 +194,7 @@ export function ProjectOrderEditModal({
                 onChange={(e) => setForm((prev) => ({ ...prev, priority: e.target.value as NewOrderForm['priority'] }))}
                 className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20"
               >
+                <option value="">Öncelik seçin</option>
                 <option value="Low">Düşük</option>
                 <option value="Medium">Orta</option>
                 <option value="High">Yüksek</option>
