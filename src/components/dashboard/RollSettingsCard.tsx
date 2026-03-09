@@ -157,12 +157,12 @@ export function RollSettingsCard({
         </div>
         {rolls.length > 0 && (
           <p className="text-xs font-medium text-primary bg-primary/10 rounded px-3 py-2">
-            Toplam: {total} ton · {rolls.length} rulo
+            Toplam: {Number(total).toFixed(2)} ton · {rolls.length} rulo
           </p>
         )}
         {estimatedNeedTon != null && rolls.length > 0 && (
           <p className="text-xs text-slate-500">
-            Tahmini ihtiyaç: ~{Math.ceil(estimatedNeedTon)} ton
+            Tahmini ihtiyaç: ~{Number(estimatedNeedTon).toFixed(2)} ton
             {total < estimatedNeedTon && (
               <span className="text-accent-red font-medium ml-1">(Yetersiz tonaj)</span>
             )}

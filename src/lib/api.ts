@@ -54,6 +54,8 @@ export interface OptimizeRequest {
   costs: CostsInput;
   safetyStock?: number;
   configurationId?: string;
+  /** false ise sadece hesaplama, DB'ye kaydetmez (önizleme modu) */
+  saveToDb?: boolean;
 }
 
 export interface SummaryResponse {
@@ -144,12 +146,36 @@ export interface SavedOrderSet {
   updated_at?: string;
 }
 
+/** Tek sipariş (orders tablosu) */
+export interface Order {
+  id: string;
+  order_id?: string | null;
+  m2: number;
+  panel_width: number;
+  panel_length?: number;
+  il?: string | null;
+  bitis_tarihi?: string | null;
+  aciklama?: string | null;
+  status: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface SavedStockSet {
   id: string;
   name: string;
   rolls: number[];
   created_at?: string;
   updated_at?: string;
+}
+
+/** Tek rulo (stock_rolls tablosu) */
+export interface StockRoll {
+  id: string;
+  tonnage: number;
+  source: string;
+  run_id?: string | null;
+  created_at?: string;
 }
 
 /**
@@ -252,12 +278,17 @@ export interface RunSummary {
   created_at: string;
   summary: SummaryResponse;
   status: string;
+  /** Çalıştırma durumu: saved = beklemede/test, processed = işlendi, cancelled = iptal */
+  run_status?: string;
+  processed_at?: string | null;
 }
 
-/** Geçmiş çalıştırma detayı (OptimizeResponse + createdAt, reportUrl) */
+/** Geçmiş çalıştırma detayı (OptimizeResponse + createdAt, reportUrl, runStatus) */
 export interface RunDetail extends OptimizeResponse {
   createdAt?: string;
   reportUrl?: string;
+  runStatus?: string;
+  processedAt?: string | null;
 }
 
 /**
@@ -323,81 +354,185 @@ export async function saveRunConfiguration(fileId: string): Promise<Configuratio
 }
 
 /**
- * Kayıtlı sipariş setlerini listeler.
+ * Kayıtlı siparişleri listeler.
+ * @param status - Opsiyonel durum filtresi (örn. 'Pending')
  */
+export async function getOrders(status?: string): Promise<{ orders: Order[] }> {
+  const url = status ? `${API_BASE}/api/orders?status=${encodeURIComponent(status)}` : `${API_BASE}/api/orders`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Siparişler yüklenemedi');
+  return res.json();
+}
+
+/**
+ * Sipariş kaydeder veya günceller.
+ */
+export async function saveOrder(data: {
+  id?: string;
+  order_id?: string;
+  m2: number;
+  panel_width: number;
+  panel_length?: number;
+  il?: string;
+  bitis_tarihi?: string;
+  aciklama?: string;
+  status?: string;
+}): Promise<Order> {
+  const url = `${API_BASE}/api/orders`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Sipariş kaydedilemedi' }));
+    throw new Error(err.detail || 'Sipariş kaydedilemedi');
+  }
+  return res.json();
+}
+
+/**
+ * Siparişi siler.
+ */
+export async function deleteOrder(orderId: string): Promise<void> {
+  const url = `${API_BASE}/api/orders/${orderId}`;
+  const res = await fetch(url, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Sipariş silinemedi');
+}
+
+/**
+ * Kayıtlı stok rulolarını listeler.
+ */
+export async function getStockRolls(): Promise<{ stockRolls: StockRoll[] }> {
+  const url = `${API_BASE}/api/stock-rolls`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Stok ruloları yüklenemedi');
+  return res.json();
+}
+
+/**
+ * Yeni rulo ekler.
+ */
+export async function addStockRoll(tonnage: number): Promise<StockRoll> {
+  const url = `${API_BASE}/api/stock-rolls`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tonnage }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Rulo eklenemedi' }));
+    throw new Error(err.detail || 'Rulo eklenemedi');
+  }
+  return res.json();
+}
+
+/**
+ * Rulo tonajını günceller.
+ */
+export async function updateStockRoll(rollId: string, tonnage: number): Promise<StockRoll> {
+  const url = `${API_BASE}/api/stock-rolls/${rollId}`;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tonnage }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Rulo güncellenemedi' }));
+    throw new Error(err.detail || 'Rulo güncellenemedi');
+  }
+  return res.json();
+}
+
+/**
+ * Ruloyu siler.
+ */
+export async function deleteStockRoll(rollId: string): Promise<void> {
+  const url = `${API_BASE}/api/stock-rolls/${rollId}`;
+  const res = await fetch(url, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Rulo silinemedi');
+}
+
+/**
+ * Optimizasyon sonucunu işleme alır.
+ */
+export async function processResult(fileId: string): Promise<{ ok: boolean; fileId: string }> {
+  const url = `${API_BASE}/api/process-result/${fileId}`;
+  const res = await fetch(url, { method: 'POST' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'İşleme alınamadı' }));
+    throw new Error(err.detail || 'İşleme alınamadı');
+  }
+  return res.json();
+}
+
+/**
+ * Optimizasyon çalıştırmasını iptal olarak işaretler.
+ */
+export async function cancelRun(fileId: string): Promise<{ ok: boolean; fileId: string }> {
+  const url = `${API_BASE}/api/runs/${fileId}/cancel`;
+  const res = await fetch(url, { method: 'POST' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'İptal edilemedi' }));
+    throw new Error(err.detail || 'İptal edilemedi');
+  }
+  return res.json();
+}
+
+/** Geriye dönük uyumluluk - orders tablosundan set benzeri dönüşüm */
 export async function getOrderSets(): Promise<{ orderSets: SavedOrderSet[] }> {
-  const url = `${API_BASE}/api/order-sets`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('Sipariş setleri yüklenemedi');
-  return res.json();
+  const { orders } = await getOrders();
+  if (orders.length === 0) return { orderSets: [] };
+  return {
+    orderSets: [{
+      id: 'all',
+      name: 'Tüm Siparişler',
+      orders: orders.map(o => ({
+        orderId: o.id,
+        m2: o.m2,
+        panelWidth: o.panel_width,
+        panelLength: o.panel_length ?? 1,
+      })),
+      created_at: orders[0]?.created_at,
+      updated_at: orders[0]?.updated_at,
+    }],
+  };
 }
 
-/**
- * Yeni sipariş seti kaydeder.
- */
-export async function saveOrderSet(
-  name: string,
-  orders: OrderInput[],
-  setId?: string,
-): Promise<SavedOrderSet> {
-  const url = `${API_BASE}/api/order-sets`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: setId, name, orders }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: 'Sipariş seti kaydedilemedi' }));
-    throw new Error(err.detail || 'Sipariş seti kaydedilemedi');
-  }
-  return res.json();
+/** @deprecated Yeni yapıda saveOrder kullanın */
+export async function saveOrderSet(_name: string, _orders: OrderInput[], _setId?: string): Promise<SavedOrderSet> {
+  throw new Error('Sipariş seti kaldırıldı. Tek tek sipariş ekleyin.');
 }
 
-/**
- * Sipariş setini siler.
- */
-export async function deleteOrderSet(setId: string): Promise<void> {
-  const url = `${API_BASE}/api/order-sets/${setId}`;
-  const res = await fetch(url, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Sipariş seti silinemedi');
+/** @deprecated Yeni yapıda deleteOrder kullanın */
+export async function deleteOrderSet(_setId: string): Promise<void> {
+  throw new Error('Sipariş seti kaldırıldı.');
 }
 
-/**
- * Kayıtlı stok setlerini listeler.
- */
+/** Geriye dönük uyumluluk - stock_rolls'tan set benzeri dönüşüm */
 export async function getStockSets(): Promise<{ stockSets: SavedStockSet[] }> {
-  const url = `${API_BASE}/api/stock-sets`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('Stok setleri yüklenemedi');
-  return res.json();
+  const { stockRolls } = await getStockRolls();
+  if (stockRolls.length === 0) return { stockSets: [] };
+  return {
+    stockSets: [{
+      id: 'all',
+      name: 'Mevcut Rulolar',
+      rolls: stockRolls.map(r => r.tonnage),
+      created_at: stockRolls[0]?.created_at,
+      updated_at: stockRolls[0]?.created_at,
+    }],
+  };
 }
 
-/**
- * Yeni stok/rulo seti kaydeder.
- */
-export async function saveStockSet(
-  name: string,
-  rolls: number[],
-  setId?: string,
-): Promise<SavedStockSet> {
-  const url = `${API_BASE}/api/stock-sets`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: setId, name, rolls }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: 'Stok seti kaydedilemedi' }));
-    throw new Error(err.detail || 'Stok seti kaydedilemedi');
+/** @deprecated Yeni yapıda addStockRoll kullanın */
+export async function saveStockSet(_name: string, rolls: number[], _setId?: string): Promise<SavedStockSet> {
+  for (const t of rolls) {
+    if (t > 0) await addStockRoll(t);
   }
-  return res.json();
+  return { id: 'all', name: 'Rulolar', rolls, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
 }
 
-/**
- * Stok/rulo setini siler.
- */
-export async function deleteStockSet(setId: string): Promise<void> {
-  const url = `${API_BASE}/api/stock-sets/${setId}`;
-  const res = await fetch(url, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Stok seti silinemedi');
+/** @deprecated Tek rulo silmek için deleteStockRoll kullanın */
+export async function deleteStockSet(_setId: string): Promise<void> {
+  throw new Error('Set kaldırıldı. Tek tek rulo silin.');
 }

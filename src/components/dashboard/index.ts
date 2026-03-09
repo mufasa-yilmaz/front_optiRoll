@@ -28,5 +28,7 @@ export { ScenarioSelectionCard } from './ScenarioSelectionCard';
 export { RollSettingsCard } from './RollSettingsCard';
 export { CostParametersCard } from './CostParametersCard';
 export { OrdersSummaryCard } from './OrdersSummaryCard';
+export { OrdersSelectCard } from './OrdersSelectCard';
+export { OrdersSelectDropdown } from './OrdersSelectDropdown';
 export { DashboardFooterCta } from './DashboardFooterCta';
 export { ConfigurationSummaryCard } from './ConfigurationSummaryCard';

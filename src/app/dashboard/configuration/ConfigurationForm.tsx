@@ -9,18 +9,18 @@ import {
   RollSettingsCard,
   CostParametersCard,
   OrdersSummaryCard,
+  OrdersSelectDropdown,
   DashboardFooterCta,
   ConfigurationSummaryCard,
 } from '@/components';
 import { StickySummaryAside } from './StickySummaryAside';
 import {
   optimize,
-  getOrderSets,
-  getStockSets,
+  getOrders,
+  getStockRolls,
   getConfigurationById,
   ROLL_ORDER_UNLIMITED,
-  type SavedOrderSet,
-  type SavedStockSet,
+  type Order,
   type OptimizeRequest,
 } from '@/lib/api';
 import { useOptimization } from '@/contexts/OptimizationContext';
@@ -64,11 +64,29 @@ export function ConfigurationForm() {
       : 0;
   const [configurationId, setConfigurationId] = useState<string | null>(null);
   const [isLoadingConfiguration, setIsLoadingConfiguration] = useState(false);
-  const [orderSets, setOrderSets] = useState<SavedOrderSet[]>([]);
-  const [stockSets, setStockSets] = useState<SavedStockSet[]>([]);
-  const [selectedOrderSetId, setSelectedOrderSetId] = useState('');
-  const [selectedStockSetId, setSelectedStockSetId] = useState('');
+  const [availableOrders, setAvailableOrders] = useState<Order[]>([]);
+  const [availableRolls, setAvailableRolls] = useState<number[]>([]);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   const [loadingStep, setLoadingStep] = useState(0);
+
+  /** Seçili siparişler değiştiğinde orders state'ini günceller */
+  useEffect(() => {
+    const selected = availableOrders.filter((o) => selectedOrderIds.has(o.id));
+    const mapped = selected.map((o) => ({
+      id: o.id,
+      m2: Number(o.m2),
+      panelWidth: Number(o.panel_width),
+      panelLength: Number(o.panel_length ?? 1),
+    }));
+    setOrders(mapped);
+  }, [selectedOrderIds, availableOrders]);
+
+  /** Stok ruloları yüklendiğinde rolls'u doldur */
+  useEffect(() => {
+    if (availableRolls.length > 0 && rolls.length === 0) {
+      setRolls(availableRolls);
+    }
+  }, [availableRolls]);
 
   type MissingFieldKey =
     | 'thickness'
@@ -86,21 +104,21 @@ export function ConfigurationForm() {
   const [validationBlinkKey, setValidationBlinkKey] = useState(0);
 
   /**
-   * Konfigürasyon ekranında kullanılacak sipariş/stok setlerini yükler.
+   * Orders tablosundan Pending siparişleri ve stock_rolls'tan ruloları yükler.
    */
   const loadPresetSets = useCallback(async () => {
     try {
-      const [ordersRes, stocksRes] = await Promise.all([getOrderSets(), getStockSets()]);
-      setOrderSets(ordersRes.orderSets || []);
-      setStockSets(stocksRes.stockSets || []);
+      const [ordersRes, rollsRes] = await Promise.all([getOrders('Pending'), getStockRolls()]);
+      setAvailableOrders(ordersRes.orders || []);
+      setAvailableRolls((rollsRes.stockRolls || []).map((r) => Number(r.tonnage)));
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Hazır setler yüklenemedi';
+      const msg = err instanceof Error ? err.message : 'Veriler yüklenemedi';
       toast.error(msg);
     }
   }, []);
 
   /**
-   * Formdan geçerli sipariş satırlarını üretir.
+   * Formdan geçerli sipariş satırlarını üretir. Seçili orders tablosu siparişleri + manuel eklenenler.
    */
   const getValidOrders = useCallback(() => {
     return orders.filter((o) => o.m2 > 0 && o.panelWidth > 0 && (o.panelLength ?? 1) > 0);
@@ -112,50 +130,19 @@ export function ConfigurationForm() {
   const validateRequiredFields = useCallback((): MissingFieldKey[] => {
     const missing: MissingFieldKey[] = [];
 
-    if (!thickness || thickness <= 0) {
-      missing.push('thickness');
-    }
-
-    if (!density || density <= 0) {
-      missing.push('density');
-    }
-
-    /** Güvenlik stoğu 0 dahil geçerlidir; sadece undefined/null ise eksik sayılır. */
-    if (safetyStock == null || Number.isNaN(safetyStock)) {
-      missing.push('safetyStock');
-    }
-
+    if (!thickness || thickness <= 0) missing.push('thickness');
+    if (!density || density <= 0) missing.push('density');
+    if (safetyStock == null || Number.isNaN(safetyStock)) missing.push('safetyStock');
     const maxOrdersValid = maxOrdersPerRoll != null && (maxOrdersPerRoll === ROLL_ORDER_UNLIMITED || maxOrdersPerRoll > 0);
-    if (!maxOrdersValid) {
-      missing.push('maxOrdersPerRoll');
-    }
-
+    if (!maxOrdersValid) missing.push('maxOrdersPerRoll');
     const maxRollsValid = maxRollsPerOrder != null && (maxRollsPerOrder === ROLL_ORDER_UNLIMITED || maxRollsPerOrder > 0);
-    if (!maxRollsValid) {
-      missing.push('maxRollsPerOrder');
-    }
-
-    if (!fireCost || fireCost <= 0) {
-      missing.push('fireCost');
-    }
-
-    if (!setupCost || setupCost <= 0) {
-      missing.push('setupCost');
-    }
-
-    if (stockCost == null) {
-      missing.push('stockCost');
-    }
-
+    if (!maxRollsValid) missing.push('maxRollsPerOrder');
+    if (!fireCost || fireCost <= 0) missing.push('fireCost');
+    if (!setupCost || setupCost <= 0) missing.push('setupCost');
+    if (stockCost == null) missing.push('stockCost');
     const validOrders = getValidOrders();
-    if (orders.length === 0 || validOrders.length === 0) {
-      missing.push('orders');
-    }
-
-    if (rolls.length === 0 || rolls.some((r) => r <= 0)) {
-      missing.push('rolls');
-    }
-
+    if (validOrders.length === 0) missing.push('orders');
+    if (rolls.length === 0 || rolls.some((r) => r <= 0)) missing.push('rolls');
     return missing;
   }, [
     thickness,
@@ -173,6 +160,7 @@ export function ConfigurationForm() {
 
   /**
    * Form alanlarından optimize isteği payload'ını oluşturur.
+   * orderId (UUID) işleme alındığında sipariş eşleştirmesi için gerekli.
    */
   const buildOptimizeRequest = useCallback(
     (validOrders: { id: string; m2: number; panelWidth: number; panelLength?: number }[]): OptimizeRequest => {
@@ -180,7 +168,12 @@ export function ConfigurationForm() {
         material: { thickness: thickness ?? 0, density: densityGcm3 },
         safetyStock: safetyStock ?? 0,
         configurationId: configurationId ?? undefined,
-        orders: validOrders.map((o) => ({ m2: o.m2, panelWidth: o.panelWidth, panelLength: o.panelLength ?? 1 })),
+        orders: validOrders.map((o) => ({
+          orderId: o.id,
+          m2: o.m2,
+          panelWidth: o.panelWidth,
+          panelLength: o.panelLength ?? 1,
+        })),
         rollSettings: {
           rolls: rolls.filter((r) => r > 0),
           maxOrdersPerRoll: maxOrdersPerRoll === ROLL_ORDER_UNLIMITED ? ROLL_ORDER_UNLIMITED : (maxOrdersPerRoll ?? 0),
@@ -295,43 +288,6 @@ export function ConfigurationForm() {
     };
   }, [isLoading]);
 
-  /**
-   * Seçilen sipariş setini manuel forma uygular.
-   */
-  const applyOrderSet = useCallback(
-    (setId: string) => {
-      setSelectedOrderSetId(setId);
-      if (!setId) return;
-      const found = orderSets.find((s) => s.id === setId);
-      if (!found) return;
-      const mapped = (found.orders || [])
-        .map((o, idx) => ({
-          id: `S${idx + 1}`,
-          m2: Number(o.m2),
-          panelWidth: Number(o.panelWidth),
-          panelLength: Number((o as { panelLength?: number }).panelLength ?? 1),
-        }))
-        .filter((o) => o.m2 > 0 && o.panelWidth > 0 && (o.panelLength ?? 1) > 0);
-      if (mapped.length > 0) setOrders(mapped);
-    },
-    [orderSets],
-  );
-
-  /**
-   * Seçilen stok setini manuel forma uygular.
-   */
-  const applyStockSet = useCallback(
-    (setId: string) => {
-      setSelectedStockSetId(setId);
-      if (!setId) return;
-      const found = stockSets.find((s) => s.id === setId);
-      if (!found) return;
-      const mapped = (found.rolls || []).map((r) => Number(r)).filter((r) => r > 0);
-      if (mapped.length > 0) setRolls(mapped);
-    },
-    [stockSets],
-  );
-
   /** Eksik alan anahtarından ilgili bölüm id'sine eşleme (kaydırma için). */
   const missingFieldToSectionId: Record<MissingFieldKey, string> = {
     thickness: 'material',
@@ -420,7 +376,7 @@ export function ConfigurationForm() {
 
   /** Üst adım çubuğu: sırayla Malzeme → Senaryo → Maliyet → Stok → Sipariş. Tıklanınca ilgili bölüme kayar. */
   const CONFIG_STEPS = [
-    { id: 'material', label: 'Malzeme Özellikleri', icon: 'layers' as const },
+    // { id: 'material', label: 'Malzeme Özellikleri', icon: 'layers' as const },
     { id: 'scenario', label: 'Senaryo Seçimi', icon: 'tune' as const },
     { id: 'cost', label: 'Maliyet Parametreleri', icon: 'payments' as const },
     { id: 'rolls', label: 'Rulo Stoku', icon: 'inventory_2' as const },
@@ -447,7 +403,7 @@ export function ConfigurationForm() {
         <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
           Yeni Optimizasyon Senaryosu
         </h1>
-        <p className="mt-2 text-slate-500 dark:text-slate-400">
+        <p className="mt-2 text-slate-500 dark:text-slate-400 text-sm">
           Malzeme özellikleri, senaryo seçimi, maliyet parametreleri, stok ve siparişleri sırayla yapılandırın.
         </p>
       </div>
@@ -477,7 +433,7 @@ export function ConfigurationForm() {
 
       <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
         <div className="flex-1 flex flex-col gap-6">
-          <section
+          {/* <section
             id="section-material"
             className="scroll-mt-[5.5rem]"
             aria-labelledby="heading-material"
@@ -492,7 +448,7 @@ export function ConfigurationForm() {
               hasDensityError={missingFields.includes('density')}
               blinkValidationKey={validationBlinkKey}
             />
-          </section>
+          </section> */}
 
           <section
             id="section-scenario"
@@ -543,9 +499,6 @@ export function ConfigurationForm() {
               rolls={rolls}
               onRollsChange={setRolls}
               estimatedNeedTon={estimatedNeedTon}
-              stockSets={stockSets}
-              selectedStockSetId={selectedStockSetId}
-              onStockSetSelect={applyStockSet}
               hasRollsError={missingFields.includes('rolls')}
               blinkValidationKey={validationBlinkKey}
               showManualAdd={false}
@@ -558,18 +511,39 @@ export function ConfigurationForm() {
             aria-labelledby="heading-orders"
           >
             <h2 id="heading-orders" className="sr-only">Siparişler</h2>
-            <OrdersSummaryCard
-              orders={orders}
-              onOrdersChange={setOrders}
-              thickness={thickness}
-              density={density}
-              orderSets={orderSets}
-              selectedOrderSetId={selectedOrderSetId}
-              onOrderSetSelect={applyOrderSet}
-              hasOrdersError={missingFields.includes('orders')}
-              blinkValidationKey={validationBlinkKey}
-              showManualAdd={false}
-            />
+            <div
+              className={`rounded-xl border shadow-sm overflow-hidden ${
+                missingFields.includes('orders') ? 'border-red-300' : 'border-slate-200 bg-white'
+              }`}
+              key={missingFields.includes('orders') ? `orders-section-${validationBlinkKey}` : 'orders-section'}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-primary/5 bg-slate-50/70 px-6 py-4">
+                <div>
+                  <h2 className="text-lg font-bold text-primary">Siparişler</h2>
+                  <p className="text-xs text-slate-500">
+                    {orders.length > 0
+                      ? `${orders.length} sipariş seçili`
+                      : 'Optimizasyona dahil edilecek siparişleri sağdaki menüden seçin.'}
+                  </p>
+                </div>
+                <OrdersSelectDropdown
+                  orders={availableOrders}
+                  selectedIds={selectedOrderIds}
+                  onSelectionChange={setSelectedOrderIds}
+                  hasError={missingFields.includes('orders')}
+                  label="Siparişlerden seç"
+                />
+              </div>
+              <OrdersSummaryCard
+                orders={orders}
+                thickness={thickness}
+                density={density}
+                hasOrdersError={missingFields.includes('orders')}
+                blinkValidationKey={validationBlinkKey}
+                showManualAdd={false}
+                hideHeader
+              />
+            </div>
           </section>
         </div>
 

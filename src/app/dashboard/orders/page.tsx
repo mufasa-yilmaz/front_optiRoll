@@ -1,430 +1,195 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { deleteOrderSet, getOrderSets, saveOrderSet, type SavedOrderSet } from '@/lib/api';
+import { deleteOrder, getOrders, saveOrder, type Order } from '@/lib/api';
 import {
-  OrdersFiltersBar,
   OrdersManagementHeader,
+  OrdersTable,
+  OrderCreateModal,
   OrdersStatsCards,
-  ProjectCreateModal,
-  ProjectOrderEditModal,
-  ProjectsTable,
-  fromApiOrderRow,
-  toApiOrderRow,
-  calcWeightTon,
-  type NewOrderForm,
-  type OrderPipelineRow,
-  type MaterialType,
 } from '@/components/dashboard/orders';
+import type { OrderFormData } from '@/components/dashboard/orders';
+
+const emptyForm: OrderFormData = {
+  order_id: '',
+  m2: 0,
+  panel_width: 0,
+  panel_length: 1,
+  il: '',
+  bitis_tarihi: '',
+  aciklama: '',
+};
 
 /**
- * Sipariş yönetim sayfası: manuel sipariş girişi + kayıtlı sipariş setleri.
+ * Sipariş yönetim sayfası: doğrudan sipariş listesi, proje kavramı yok.
  */
 export default function OrdersPage() {
-  const [rows, setRows] = useState<OrderPipelineRow[]>([]);
-  const [newOrder, setNewOrder] = useState<NewOrderForm>({
-    id: '',
-    m2: 0,
-    widthM: 0,
-    panelLengthM: 0,
-    material: '',
-    thicknessMm: 0,
-    priority: '',
-  });
-  const [setName, setSetName] = useState('');
-  const [orderSets, setOrderSets] = useState<SavedOrderSet[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
-  const [activeProjectName, setActiveProjectName] = useState<string | null>(null);
-  const [projectSearch, setProjectSearch] = useState('');
-  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
-  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
-  const [editingOrderIndex, setEditingOrderIndex] = useState<number | null>(null);
-  const [projectCode, setProjectCode] = useState('');
-  const [projectDepartment, setProjectDepartment] = useState('Engineering');
-  const [projectDescription, setProjectDescription] = useState('');
-  /** Proje içi sipariş düzenleme modalı: hangi set ve hangi sipariş indeksi */
-  const [orderEditModal, setOrderEditModal] = useState<{ setItem: SavedOrderSet; orderIndex: number } | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  const [form, setForm] = useState<OrderFormData>(emptyForm);
 
-  /**
-   * Sipariş setlerini API'den yükler.
-   */
-  async function loadOrderSets() {
+  async function loadOrders() {
     try {
       setLoading(true);
-      const data = await getOrderSets();
-      setOrderSets(data.orderSets || []);
+      const data = await getOrders();
+      setOrders(data.orders || []);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Sipariş setleri yüklenemedi');
+      toast.error(e instanceof Error ? e.message : 'Siparişler yüklenemedi');
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadOrderSets();
+    loadOrders();
   }, []);
 
-  /**
-   * Form alanlarını sıfırlar.
-   */
-  function resetNewOrderForm() {
-    setNewOrder({
-      id: '',
-      m2: 0,
-      widthM: 0,
-      panelLengthM: 0,
-      material: '',
-      thicknessMm: 0,
-      priority: '',
+  function openCreateModal() {
+    setEditingOrder(null);
+    setForm(emptyForm);
+    setIsModalOpen(true);
+  }
+
+  function openEditModal(order: Order) {
+    setEditingOrder(order);
+    setForm({
+      order_id: order.order_id || '',
+      m2: Number(order.m2),
+      panel_width: Number(order.panel_width),
+      panel_length: Number(order.panel_length ?? 1),
+      il: order.il || '',
+      bitis_tarihi: order.bitis_tarihi ? order.bitis_tarihi.slice(0, 10) : '',
+      aciklama: order.aciklama || '',
     });
+    setIsModalOpen(true);
   }
 
-  /**
-   * Kayıtlı API sipariş satırlarını modal/pipeline satırlarına dönüştürür.
-   */
-  function mapSetOrdersToRows(setItem: SavedOrderSet): OrderPipelineRow[] {
-    return (setItem.orders || []).map((order, index) => fromApiOrderRow(order, index));
+  function closeModal() {
+    setIsModalOpen(false);
+    setEditingOrder(null);
+    setForm(emptyForm);
   }
 
-  /**
-   * Modal içindeki siparişi ekler veya düzenleme modunda günceller.
-   * Zorunlu alanlar (m2, genişlik, kesim uzunluğu, kalınlık, malzeme, öncelik) boşsa uyarı gösterir.
-   */
-  function handleUpsertOrderInDraft() {
-    const m2Num = Number(newOrder.m2) || 0;
-    const widthNum = Number(newOrder.widthM) || 0;
-    const panelNum = Number(newOrder.panelLengthM) || 0;
-    const thicknessNum = Number(newOrder.thicknessMm) || 0;
-
-    const missing: string[] = [];
-    if (m2Num <= 0) missing.push('Talep (m²)');
-    if (widthNum <= 0) missing.push('Genişlik (m)');
-    if (panelNum <= 0) missing.push('Kesim uzunluğu (m)');
-    if (thicknessNum <= 0) missing.push('Kalınlık (mm)');
-    if (!newOrder.material) missing.push('Malzeme');
-    if (!newOrder.priority) missing.push('Öncelik');
-    if (missing.length > 0) {
-      toast.error(`Lütfen şu zorunlu alanları doldurun: ${missing.join(', ')}`);
-      return;
-    }
-
-    const m2 = Math.max(0.01, m2Num);
-    const widthM = Math.max(0.01, widthNum);
-    const panelLengthM = Math.max(0.01, panelNum);
-    const thicknessMm = Math.max(0.1, thicknessNum);
-    const widthMm = Math.round(widthM * 1000);
-    const lengthM = widthM > 0 ? Number((m2 / widthM).toFixed(4)) : 1;
-    const material = (newOrder.material || 'galvaniz') as MaterialType;
-    const priority = (newOrder.priority || 'Medium') as OrderPipelineRow['priority'];
-    const weightTon = Number(calcWeightTon(m2, thicknessMm, material).toFixed(4));
-    const fallbackId = `ORD-${new Date().getFullYear()}-${String(rows.length + 1).padStart(3, '0')}`;
-    const id = newOrder.id.trim() || fallbackId;
-    const candidate: OrderPipelineRow = {
-      id,
-      widthMm,
-      lengthM,
-      panelLengthM,
-      weightTon,
-      priority,
-      status: 'Pending',
-      material,
-      thicknessMm,
-    };
-    if (editingOrderIndex != null) {
-      setRows((prev) => prev.map((item, index) => (index === editingOrderIndex ? candidate : item)));
-      toast.success(`"${id}" siparişi güncellendi.`);
-    } else {
-      setRows((prev) => [candidate, ...prev]);
-      toast.success(`"${id}" siparişi eklendi.`);
-    }
-    setEditingOrderIndex(null);
-    resetNewOrderForm();
-  }
-
-  /**
-   * Modal/pipeline içindeki geçici siparişi siler.
-   */
-  function handleDeleteRowFromDraft(orderId: string) {
-    setRows((prev) => prev.filter((r) => r.id !== orderId));
-    setEditingOrderIndex(null);
-  }
-
-  /**
-   * Girilen manuel siparişleri yeni set olarak kaydeder.
-   */
-  async function handleSaveSet() {
-    const validOrders = rows
-      .filter((r) => r.widthMm > 0 && r.lengthM > 0)
-      .map(toApiOrderRow);
-    if (!setName.trim()) {
-      toast.error('Set adı zorunlu');
-      return;
-    }
-    if (validOrders.length === 0) {
-      toast.error('Kaydetmek için en az bir geçerli sipariş girin');
+  async function handleSave() {
+    if (form.m2 <= 0 || form.panel_width <= 0 || form.panel_length <= 0) {
+      toast.error('Talep (m²), genişlik ve kesim uzunluğu 0\'dan büyük olmalıdır.');
       return;
     }
     try {
-      const projectName = setName.trim();
-      await saveOrderSet(projectName, validOrders, editingProjectId || undefined);
-      setSetName('');
-      setProjectCode('');
-      setProjectDescription('');
-      setProjectDepartment('Engineering');
-      setActiveProjectName(projectName);
-      setEditingProjectId(null);
-      setEditingOrderIndex(null);
-      setRows([]);
-      setIsProjectModalOpen(false);
-      toast.success(editingProjectId ? 'Sipariş seti güncellendi.' : 'Sipariş seti kaydedildi.');
-      await loadOrderSets();
+      await saveOrder({
+        id: editingOrder?.id,
+        order_id: form.order_id.trim() || undefined,
+        m2: form.m2,
+        panel_width: form.panel_width,
+        panel_length: form.panel_length,
+        il: form.il.trim() || undefined,
+        bitis_tarihi: form.bitis_tarihi || undefined,
+        aciklama: form.aciklama.trim() || undefined,
+        status: editingOrder?.status ?? 'Pending',
+      });
+      toast.success(editingOrder ? 'Sipariş güncellendi.' : 'Sipariş eklendi.');
+      closeModal();
+      await loadOrders();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Sipariş seti kaydedilemedi');
+      toast.error(e instanceof Error ? e.message : 'Sipariş kaydedilemedi');
     }
   }
 
-  /**
-   * Kayıtlı seti tabloya uygular.
-   */
-  function handleApplySet(setItem: SavedOrderSet) {
-    const mapped = mapSetOrdersToRows(setItem);
-    setRows(mapped);
-    setActiveProjectName(setItem.name);
-    toast.success(`"${setItem.name}" sete yüklendi.`);
-  }
-
-  /**
-   * Kayıtlı seti siler.
-   */
-  async function handleDeleteSet(setItem: SavedOrderSet) {
-    const ok = window.confirm(`"${setItem.name}" sipariş seti silinsin mi?`);
+  async function handleDelete(order: Order) {
+    const ok = window.confirm(`"${order.order_id || order.id}" siparişi silinsin mi?`);
     if (!ok) return;
     try {
-      await deleteOrderSet(setItem.id);
-      toast.success('Sipariş seti silindi.');
-      await loadOrderSets();
+      await deleteOrder(order.id);
+      toast.success('Sipariş silindi.');
+      await loadOrders();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Sipariş seti silinemedi');
+      toast.error(e instanceof Error ? e.message : 'Sipariş silinemedi');
     }
   }
 
-  /** Proje listesini arama girdisine göre filtreler. */
-  const filteredProjects = useMemo(() => {
-    const query = projectSearch.trim().toLocaleLowerCase('tr-TR');
-    if (!query) return orderSets;
-    return orderSets.filter((setItem) => {
-      const id = setItem.id.toLocaleLowerCase('tr-TR');
-      const name = (setItem.name || '').toLocaleLowerCase('tr-TR');
-      const date = (setItem.created_at || '').toLocaleLowerCase('tr-TR');
-      return id.includes(query) || name.includes(query) || date.includes(query);
-    });
-  }, [orderSets, projectSearch]);
-
-  /** Üstteki proje oluşturma aksiyonunda modalı açar. */
-  function handleCreateProjectClick() {
-    setSetName('');
-    setProjectCode('');
-    setProjectDescription('');
-    setProjectDepartment('Engineering');
-    setRows([]);
-    setEditingProjectId(null);
-    setEditingOrderIndex(null);
-    resetNewOrderForm();
-    setIsProjectModalOpen(true);
-  }
-
-  /** Proje oluşturma modalını kapatır. */
-  function handleCloseProjectModal() {
-    setEditingOrderIndex(null);
-    setIsProjectModalOpen(false);
-  }
-
-  /** Proje satırının genişletme durumunu değiştirir. */
-  function handleToggleProjectExpanded(setId: string) {
-    setExpandedProjectId((prev) => (prev === setId ? null : setId));
-  }
-
   /**
-   * Var olan proje için sipariş ekleme modunu açar.
+   * Tablo üzerinden sipariş durumu değiştirildiğinde çağrılır; API ile günceller ve listeyi yeniler.
    */
-  function handleAddOrderToProject(setItem: SavedOrderSet) {
-    setSetName(setItem.name);
-    setRows(mapSetOrdersToRows(setItem));
-    setEditingProjectId(setItem.id);
-    setEditingOrderIndex(null);
-    resetNewOrderForm();
-    setIsProjectModalOpen(true);
-  }
-
-  /**
-   * Proje içindeki bir siparişi düzenlemek için sipariş düzenleme modalını açar.
-   */
-  function handleEditProjectOrder(setItem: SavedOrderSet, orderIndex: number) {
-    const mappedRows = mapSetOrdersToRows(setItem);
-    if (!mappedRows[orderIndex]) return;
-    setOrderEditModal({ setItem, orderIndex });
-  }
-
-  /**
-   * Sipariş düzenleme modalında kaydedilen değişikliği sete yazar ve API'ye gönderir.
-   */
-  async function handleSaveOrderEdit(updated: OrderPipelineRow) {
-    if (!orderEditModal) return;
-    const { setItem, orderIndex } = orderEditModal;
-    const orders = setItem.orders || [];
-    const newOrders = [...orders];
-    newOrders[orderIndex] = toApiOrderRow(updated);
+  async function handleStatusChange(order: Order, newStatus: string) {
     try {
-      await saveOrderSet(setItem.name, newOrders, setItem.id);
-      if (activeProjectName === setItem.name) {
-        setRows(newOrders.map((order, index) => fromApiOrderRow(order, index)));
-      }
-      toast.success('Sipariş güncellendi.');
-      setOrderEditModal(null);
-      await loadOrderSets();
+      await saveOrder({
+        id: order.id,
+        order_id: order.order_id ?? undefined,
+        m2: Number(order.m2),
+        panel_width: Number(order.panel_width),
+        panel_length: Number(order.panel_length ?? 1),
+        il: order.il ?? undefined,
+        bitis_tarihi: order.bitis_tarihi ?? undefined,
+        aciklama: order.aciklama ?? undefined,
+        status: newStatus,
+      });
+      toast.success('Sipariş durumu güncellendi.');
+      await loadOrders();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Sipariş güncellenemedi');
+      toast.error(e instanceof Error ? e.message : 'Durum güncellenemedi');
+      throw e;
     }
   }
 
-  /**
-   * Proje açılır tablosundaki siparişi kalıcı olarak siler ve seti günceller.
-   */
-  async function handleDeleteProjectOrder(setItem: SavedOrderSet, orderIndex: number) {
-    const ok = window.confirm(`"${setItem.name}" içindeki sipariş silinsin mi?`);
-    if (!ok) return;
-    const nextOrders = (setItem.orders || []).filter((_, index) => index !== orderIndex);
-    if (nextOrders.length === 0) {
-      toast.error('Projede en az bir sipariş kalmalı. Gerekirse proje setini tamamen silin.');
-      return;
-    }
-    try {
-      await saveOrderSet(setItem.name, nextOrders, setItem.id);
-      if (activeProjectName === setItem.name) {
-        setRows(nextOrders.map((order, index) => fromApiOrderRow(order, index)));
-      }
-      toast.success('Proje siparişi silindi.');
-      await loadOrderSets();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Proje siparişi silinemedi');
-    }
-  }
-
-  /**
-   * Modal içindeki satırı düzenleme moduna alır.
-   */
-  function handleStartEditOrderInModal(orderIndex: number) {
-    const target = rows[orderIndex];
-    if (!target) return;
-    setEditingOrderIndex(orderIndex);
-    const m2 = (target.widthMm / 1000) * target.lengthM;
-    setNewOrder({
-      id: target.id,
-      m2: Number(m2.toFixed(2)),
-      widthM: target.widthMm / 1000,
-      panelLengthM: target.panelLengthM ?? 1,
-      material: target.material ?? 'galvaniz',
-      thicknessMm: target.thicknessMm ?? 0.75,
-      priority: target.priority,
-    });
-  }
-  /** Durum bazlı sayaçlar */
-  const pendingCount = rows.filter((r) => r.status === 'Pending').length;
-  const optimizedCount = rows.filter((r) => r.status === 'Optimized').length;
-  const productionCount = rows.filter((r) => r.status === 'In Production').length;
-  const efficiencyRate = rows.length === 0 ? 0 : ((optimizedCount + productionCount) / rows.length) * 100;
-  const remainingStockKg = Math.max(0, Math.round(4120 - rows.reduce((sum, row) => sum + row.weightTon * 120, 0)));
+  const pendingCount = orders.filter((o) => o.status === 'Pending').length;
+  const productionCount = orders.filter((o) => o.status === 'In Production').length;
+  const efficiencyRate = orders.length === 0 ? 0 : (productionCount / orders.length) * 100;
 
   return (
-    <main className="flex-1 py-8 px-4 md:px-6 bg-background-light">
-      <div className="container mx-auto max-w-[1280px]">
-        <OrdersManagementHeader onCreateProjectClick={handleCreateProjectClick} />
-        {/* <OrdersFiltersBar value={projectSearch} onChange={setProjectSearch} /> */}
+    <main className="flex h-full flex-col py-8 px-4 md:px-6 bg-background-light">
+      <div className="container mx-auto flex max-w-[1280px] flex-1 min-h-0 flex-col">
+        <OrdersManagementHeader />
 
-        {/* <div className="flex gap-4 overflow-x-auto pb-2">
-          <div className="bg-white p-4 rounded-xl border border-slate-200 min-w-[140px] shadow-sm">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Beklemede</span>
-            <p className="text-2xl font-black text-slate-900">{pendingCount}</p>
-          </div>
-          <div className="bg-white p-4 rounded-xl border border-slate-200 min-w-[140px] shadow-sm">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Optimize</span>
-            <p className="text-2xl font-black text-primary">{optimizedCount}</p>
-          </div>
-          <div className="bg-white p-4 rounded-xl border border-slate-200 min-w-[140px] shadow-sm">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Üretimde</span>
-            <p className="text-2xl font-black text-emerald-600">{productionCount}</p>
-          </div>
-        </div> */}
+        <div className="mt-6 flex min-h-0 flex-1 flex-col">
+          <OrdersTable
+            orders={orders}
+            loading={loading}
+            onEdit={openEditModal}
+            onDelete={handleDelete}
+            onStatusChange={handleStatusChange}
+            onAddOrder={openCreateModal}
+          />
+        </div>
 
-        <ProjectsTable
-          loading={loading}
-          sets={filteredProjects}
-          expandedSetId={expandedProjectId}
-          onToggleExpanded={handleToggleProjectExpanded}
-          onApplySet={handleApplySet}
-          onDeleteSet={handleDeleteSet}
-          onAddOrderToProject={handleAddOrderToProject}
-          onEditProjectOrder={handleEditProjectOrder}
-          onDeleteProjectOrder={handleDeleteProjectOrder}
-        />
-
-        <div className="mt-8 bg-primary/5 border border-primary/10 rounded-xl p-6 flex items-center gap-4">
+        <div className="mt-6 shrink-0 bg-primary/5 border border-primary/10 rounded-xl p-6 flex items-center gap-4">
           <div className="bg-primary text-white p-3 rounded-full">
             <span className="material-symbols-outlined block">insights</span>
           </div>
           <div className="flex-1">
-            <h4 className="font-bold text-primary">Sistem Önerisi</h4>
+            <h4 className="font-bold text-primary">Optimizasyon</h4>
             <p className="text-sm text-slate-600">
-              Benzer malzeme gerektiren siparişleri set olarak kaydedip tek adımda konfigürasyona yükleyebilirsiniz.
+              Bekleyen siparişleri seçip optimizasyon sayfasından çalıştırabilirsiniz.
             </p>
           </div>
-          <Link href="/dashboard/configuration" className="text-primary font-bold text-sm whitespace-nowrap hover:underline underline-offset-4">
+          <Link
+            href="/dashboard/configuration"
+            className="text-primary font-bold text-sm whitespace-nowrap hover:underline underline-offset-4"
+          >
             Optimizasyonu Çalıştır
           </Link>
         </div>
 
-        <OrdersStatsCards
-          activeOrders={pendingCount}
-          efficiencyRate={efficiencyRate}
-          remainingStockKg={remainingStockKg}
-        />
+        <div className="mt-6 shrink-0">
+          <OrdersStatsCards
+            activeOrders={pendingCount}
+            efficiencyRate={efficiencyRate}
+            remainingStockKg={0}
+          />
+        </div>
       </div>
 
-      <ProjectCreateModal
-        isOpen={isProjectModalOpen}
-        isEditMode={editingProjectId != null}
-        setName={setName}
-        projectCode={projectCode}
-        department={projectDepartment}
-        description={projectDescription}
-        newOrder={newOrder}
-        rows={rows}
-        editingOrderIndex={editingOrderIndex}
-        onSetNameChange={setSetName}
-        onProjectCodeChange={setProjectCode}
-        onDepartmentChange={setProjectDepartment}
-        onDescriptionChange={setProjectDescription}
-        onNewOrderChange={(updater) => setNewOrder((prev) => updater(prev))}
-        onAddOrder={handleUpsertOrderInDraft}
-        onStartEditOrder={handleStartEditOrderInModal}
-        onDeleteRow={handleDeleteRowFromDraft}
-        onClose={handleCloseProjectModal}
-        onSaveProject={handleSaveSet}
-      />
-
-      <ProjectOrderEditModal
-        isOpen={orderEditModal != null}
-        onClose={() => setOrderEditModal(null)}
-        projectName={orderEditModal?.setItem.name ?? ''}
-        initialOrder={
-          orderEditModal
-            ? mapSetOrdersToRows(orderEditModal.setItem)[orderEditModal.orderIndex] ?? null
-            : null
-        }
-        onSave={handleSaveOrderEdit}
+      <OrderCreateModal
+        isOpen={isModalOpen}
+        isEdit={editingOrder != null}
+        initial={editingOrder}
+        form={form}
+        onFormChange={setForm}
+        onClose={closeModal}
+        onSave={handleSave}
       />
     </main>
   );

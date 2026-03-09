@@ -23,8 +23,33 @@ const formatDate = (s: string) => {
   }
 };
 
+/** run_status değerine göre etiket (API snake_case döner). */
+function getRunStatusLabel(run: RunSummary): string {
+  const status = run.run_status ?? 'saved';
+  if (status === 'processed') return 'İşlendi';
+  if (status === 'cancelled') return 'İptal';
+  return 'Beklemede / Test';
+}
+
+/** run_status değerine göre badge sınıfı. */
+function getRunStatusBadgeClass(run: RunSummary): string {
+  const status = run.run_status ?? 'saved';
+  if (status === 'processed') return 'bg-green-100 text-green-800';
+  if (status === 'cancelled') return 'bg-amber-100 text-amber-800';
+  return 'bg-slate-100 text-slate-700';
+}
+
+/** Durum filtresi seçenekleri */
+const STATUS_FILTER_OPTIONS = [
+  { value: 'all', label: 'Tümü' },
+  { value: 'saved', label: 'Beklemede / Test' },
+  { value: 'processed', label: 'İşlendi' },
+  { value: 'cancelled', label: 'İptal edilenler' },
+] as const;
+
 /**
  * Geçmiş optimizasyon çalıştırmaları tablosu.
+ * İşlemde (beklemede), işlendi veya iptal edilenlere göre filtreleme yapılabilir.
  */
 export function SonucListTable() {
   const [runs, setRuns] = useState<RunSummary[]>([]);
@@ -32,6 +57,7 @@ export function SonucListTable() {
   const [error, setError] = useState<string | null>(null);
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
   const [searchId, setSearchId] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sortKey, setSortKey] = useState<'date' | 'totalCost' | 'totalFire'>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useState(1);
@@ -93,6 +119,10 @@ export function SonucListTable() {
       });
     }
 
+    if (statusFilter !== 'all') {
+      next = next.filter((r) => (r.run_status ?? 'saved') === statusFilter);
+    }
+
     const withSummary = [...next];
     withSummary.sort((a, b) => {
       const factor = sortDirection === 'asc' ? 1 : -1;
@@ -112,7 +142,7 @@ export function SonucListTable() {
     });
 
     return withSummary;
-  }, [runs, searchId, sortKey, sortDirection]);
+  }, [runs, searchId, statusFilter, sortKey, sortDirection]);
 
   /**
    * Sayfalama için aktif sayfa aralığını hesaplar.
@@ -131,7 +161,7 @@ export function SonucListTable() {
    */
   useEffect(() => {
     setPage(1);
-  }, [searchId, sortKey, sortDirection, pageSize]);
+  }, [searchId, statusFilter, sortKey, sortDirection, pageSize]);
 
   if (loading) {
     return (
@@ -201,6 +231,18 @@ export function SonucListTable() {
               className="pl-9 pr-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-secondary/30 focus:border-secondary min-w-[220px]"
             />
           </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-secondary/30 focus:border-secondary bg-white min-w-[160px]"
+            title="Durum filtresi"
+          >
+            {STATUS_FILTER_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
           <div className="flex gap-2">
             <select
               value={sortKey}
@@ -228,6 +270,9 @@ export function SonucListTable() {
             <tr>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
                 Çalışma ID
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                Durum
               </th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
                 Tarih
@@ -259,6 +304,11 @@ export function SonucListTable() {
                   >
                     #{run.file_id}
                   </Link>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getRunStatusBadgeClass(run)}`}>
+                    {getRunStatusLabel(run)}
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                   {formatDate(run.created_at)}

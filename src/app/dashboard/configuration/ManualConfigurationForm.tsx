@@ -16,6 +16,7 @@ import { StickySummaryAside } from './StickySummaryAside';
 import {
   optimize,
   getConfigurationById,
+  getRun,
   ROLL_ORDER_UNLIMITED,
   type OptimizeRequest,
 } from '@/lib/api';
@@ -104,11 +105,66 @@ export function ManualConfigurationForm() {
   );
 
   /**
-   * Query param'dan gelen configurationId ile kayıtlı konfigürasyonu forma yükler (manuel sayfa).
+   * Query param runId ile sonuç sayfasından gelindiyse, o çalıştırmanın inputData'sı ile formu doldurur (manuel analiz).
+   * Veriler mevcut sipariş/stokla uyumlu olmayabilir; kullanıcı manuel sayfada düzenleyip çalıştırır.
    */
   useEffect(() => {
+    const runId = searchParams.get('runId');
+    if (!runId) return;
+
+    const loadFromRun = async () => {
+      try {
+        setIsLoadingConfiguration(true);
+        const run = await getRun(runId);
+        const input = run.inputData;
+        if (!input) {
+          toast.error('Bu çalıştırmanın giriş verisi bulunamadı.');
+          return;
+        }
+        const mat = input.material || {};
+        setThickness(Number(mat.thickness) || 0.75);
+        const d = Number(mat.density);
+        setDensity(d > 100 ? d : (d || 7.85) * 1000);
+        setSafetyStock(Number(input.safetyStock) || 0);
+        const rs = input.rollSettings || {};
+        setMaxOrdersPerRoll(Number(rs.maxOrdersPerRoll) ?? undefined);
+        setMaxRollsPerOrder(Number(rs.maxRollsPerOrder) ?? undefined);
+        setRolls(
+          Array.isArray(rs.rolls) && rs.rolls.length > 0
+            ? rs.rolls.map((r) => Number(r)).filter((r) => r > 0)
+            : [10, 10, 10],
+        );
+        const c = input.costs || {};
+        setFireCost(Number(c.fireCost) || 450);
+        setSetupCost(Number(c.setupCost) || 120);
+        setStockCost(Number(c.stockCost) ?? 2.5);
+        const orderList = input.orders || [];
+        const restoredOrders = orderList.map((o, idx) => ({
+          id: `S${idx + 1}`,
+          m2: Number(o.m2),
+          panelWidth: Number(o.panelWidth),
+          panelLength: Number((o as { panelLength?: number }).panelLength ?? 1),
+        }));
+        setOrders(restoredOrders.length > 0 ? restoredOrders : INITIAL_ORDERS);
+        if (run.configurationId) setConfigurationId(run.configurationId);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Çalıştırma verisi yüklenemedi';
+        toast.error(msg);
+      } finally {
+        setIsLoadingConfiguration(false);
+      }
+    };
+
+    loadFromRun();
+  }, [searchParams]);
+
+  /**
+   * Query param'dan gelen configurationId ile kayıtlı konfigürasyonu forma yükler (runId yoksa).
+   */
+  useEffect(() => {
+    const runId = searchParams.get('runId');
     const qConfigurationId = searchParams.get('configurationId');
-    if (!qConfigurationId) return;
+    if (runId || !qConfigurationId) return;
 
     const loadConfiguration = async () => {
       try {
@@ -117,7 +173,6 @@ export function ManualConfigurationForm() {
         setConfigurationId(cfg.id);
         setThickness(Number(cfg.material_thickness) || 0.75);
         const densityValue = Number(cfg.material_density) || 7.85;
-        // Geriye dönük uyumluluk: DB'deki değer 7.85 (g/cm3) veya 7850 (kg/m3) olabilir.
         setDensity(densityValue > 100 ? densityValue : densityValue * 1000);
         setSafetyStock(Number(cfg.safety_stock) || 0);
         setMaxOrdersPerRoll(Number(cfg.max_orders_per_roll) || 1);
@@ -227,7 +282,7 @@ export function ManualConfigurationForm() {
 
   /** Üst adım çubuğu: Malzeme → Senaryo → Maliyet → Stok → Sipariş. Tıklanınca ilgili bölüme kayar. */
   const CONFIG_STEPS = [
-    { id: 'material', label: 'Malzeme Özellikleri', icon: 'layers' as const },
+    // { id: 'material', label: 'Malzeme Özellikleri', icon: 'layers' as const },
     { id: 'scenario', label: 'Senaryo Seçimi', icon: 'tune' as const },
     { id: 'cost', label: 'Maliyet Parametreleri', icon: 'payments' as const },
     { id: 'rolls', label: 'Rulo Stoku', icon: 'inventory_2' as const },
@@ -284,7 +339,7 @@ export function ManualConfigurationForm() {
 
       <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
         <div className="flex-1 flex flex-col gap-6">
-          <section
+          {/* <section
             id="section-material"
             className="scroll-mt-[5.5rem]"
             aria-labelledby="heading-material"
@@ -296,7 +351,7 @@ export function ManualConfigurationForm() {
               density={density}
               onDensityChange={setDensity}
             />
-          </section>
+          </section> */}
 
           <section
             id="section-scenario"
