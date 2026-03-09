@@ -51,6 +51,8 @@ export function ConfigurationForm() {
   const [maxOrdersPerRoll, setMaxOrdersPerRoll] = useState<number | undefined>(undefined);
   const [maxRollsPerOrder, setMaxRollsPerOrder] = useState<number | undefined>(undefined);
   const [rolls, setRolls] = useState<number[]>([]);
+  /** Stok rulo ID'leri (rolls ile aynı sırada; manuel eklenen satırlar ''). İşleme alında stoktan düşülür. */
+  const [stockRollIds, setStockRollIds] = useState<string[]>([]);
   const [fireCost, setFireCost] = useState<number | undefined>(undefined);
   const [setupCost, setSetupCost] = useState<number | undefined>(undefined);
   const [stockCost, setStockCost] = useState<number | undefined>(undefined);
@@ -67,6 +69,7 @@ export function ConfigurationForm() {
   const [availableOrders, setAvailableOrders] = useState<Order[]>([]);
   const [availableRolls, setAvailableRolls] = useState<number[]>([]);
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
+  const [runDescription, setRunDescription] = useState('');
   const [loadingStep, setLoadingStep] = useState(0);
 
   /** Seçili siparişler değiştiğinde orders state'ini günceller */
@@ -81,14 +84,10 @@ export function ConfigurationForm() {
     setOrders(mapped);
   }, [selectedOrderIds, availableOrders]);
 
-  /** Stok ruloları yüklendiğinde rolls'u doldur */
-  useEffect(() => {
-    if (availableRolls.length > 0 && rolls.length === 0) {
-      setRolls(availableRolls);
-    }
-  }, [availableRolls]);
+  /** Stok ruloları yüklendiğinde rolls ve stockRollIds doldurulur (loadPresetSets içinde). availableRolls artık sadece boş başlangıç için kullanılmıyor. */
 
   type MissingFieldKey =
+    | 'description'
     | 'thickness'
     | 'density'
     | 'safetyStock'
@@ -110,7 +109,10 @@ export function ConfigurationForm() {
     try {
       const [ordersRes, rollsRes] = await Promise.all([getOrders('Pending'), getStockRolls()]);
       setAvailableOrders(ordersRes.orders || []);
-      setAvailableRolls((rollsRes.stockRolls || []).map((r) => Number(r.tonnage)));
+      const stockRolls = rollsRes.stockRolls || [];
+      setAvailableRolls(stockRolls.map((r) => Number(r.tonnage)));
+      setRolls(stockRolls.map((r) => Number(r.tonnage)));
+      setStockRollIds(stockRolls.map((r) => r.id));
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Veriler yüklenemedi';
       toast.error(msg);
@@ -130,8 +132,8 @@ export function ConfigurationForm() {
   const validateRequiredFields = useCallback((): MissingFieldKey[] => {
     const missing: MissingFieldKey[] = [];
 
-    if (!thickness || thickness <= 0) missing.push('thickness');
-    if (!density || density <= 0) missing.push('density');
+    if (!runDescription?.trim()) missing.push('description');
+    // Malzeme kalınlığı ve yoğunluk opsiyonel (varsayılanlar API'de kullanılır).
     if (safetyStock == null || Number.isNaN(safetyStock)) missing.push('safetyStock');
     const maxOrdersValid = maxOrdersPerRoll != null && (maxOrdersPerRoll === ROLL_ORDER_UNLIMITED || maxOrdersPerRoll > 0);
     if (!maxOrdersValid) missing.push('maxOrdersPerRoll');
@@ -145,8 +147,6 @@ export function ConfigurationForm() {
     if (rolls.length === 0 || rolls.some((r) => r <= 0)) missing.push('rolls');
     return missing;
   }, [
-    thickness,
-    density,
     safetyStock,
     maxOrdersPerRoll,
     maxRollsPerOrder,
@@ -156,6 +156,7 @@ export function ConfigurationForm() {
     orders,
     rolls,
     getValidOrders,
+    runDescription,
   ]);
 
   /**
@@ -165,7 +166,10 @@ export function ConfigurationForm() {
   const buildOptimizeRequest = useCallback(
     (validOrders: { id: string; m2: number; panelWidth: number; panelLength?: number }[]): OptimizeRequest => {
       return {
-        material: { thickness: thickness ?? 0, density: densityGcm3 },
+        material: {
+          thickness: (thickness != null && thickness > 0) ? thickness : 0.75,
+          density: (densityGcm3 && densityGcm3 > 0) ? densityGcm3 : 7.85,
+        },
         safetyStock: safetyStock ?? 0,
         configurationId: configurationId ?? undefined,
         orders: validOrders.map((o) => ({
@@ -184,6 +188,13 @@ export function ConfigurationForm() {
           setupCost: setupCost ?? 0,
           stockCost: stockCost ?? 0,
         },
+        description: runDescription?.trim() || undefined,
+        stockRollIds: (() => {
+          const ids = rolls
+            .map((tonnage, i) => (tonnage > 0 && stockRollIds[i] ? stockRollIds[i] : null))
+            .filter((id): id is string => Boolean(id));
+          return ids.length > 0 ? ids : undefined;
+        })(),
       };
     },
     [
@@ -192,11 +203,13 @@ export function ConfigurationForm() {
       safetyStock,
       configurationId,
       rolls,
+      stockRollIds,
       maxOrdersPerRoll,
       maxRollsPerOrder,
       fireCost,
       setupCost,
       stockCost,
+      runDescription,
     ],
   );
 
@@ -222,11 +235,11 @@ export function ConfigurationForm() {
         setFireCost(Number(cfg.fire_cost) || undefined);
         setSetupCost(Number(cfg.setup_cost) || undefined);
         setStockCost(Number(cfg.stock_cost));
-        setRolls(
-          Array.isArray(cfg.rolls)
-            ? cfg.rolls.map((r) => Number(r)).filter((r) => r > 0)
-            : [],
-        );
+        const cfgRolls = Array.isArray(cfg.rolls)
+          ? cfg.rolls.map((r) => Number(r)).filter((r) => r > 0)
+          : [];
+        setRolls(cfgRolls);
+        setStockRollIds(cfgRolls.map(() => ''));
         const restoredOrders = Array.isArray(cfg.orders)
           ? cfg.orders
               .map((o, idx) => ({
@@ -290,6 +303,7 @@ export function ConfigurationForm() {
 
   /** Eksik alan anahtarından ilgili bölüm id'sine eşleme (kaydırma için). */
   const missingFieldToSectionId: Record<MissingFieldKey, string> = {
+    description: 'description',
     thickness: 'material',
     density: 'material',
     safetyStock: 'scenario',
@@ -315,6 +329,7 @@ export function ConfigurationForm() {
 
       const first = missing[0];
       const messageMap: Partial<Record<MissingFieldKey, string>> = {
+        description: 'Açıklama alanı zorunludur. Sonuçlar tablosunda görünecek kısa bir açıklama yazın.',
         thickness: 'Malzeme kalınlığını girmeyi unuttunuz.',
         density: 'Malzeme yoğunluğunu girmeyi unuttunuz.',
         safetyStock: 'Güvenlik stoğu yüzdesini kontrol edin.',
@@ -374,12 +389,12 @@ export function ConfigurationForm() {
 
   const totalDemandM2 = orders.reduce((sum, o) => sum + (o.m2 || 0), 0);
 
-  /** Üst adım çubuğu: sırayla Malzeme → Senaryo → Maliyet → Stok → Sipariş. Tıklanınca ilgili bölüme kayar. */
+  /** Üst adım çubuğu: Açıklama → Senaryo → Maliyet → Stok → Sipariş. Tıklanınca ilgili bölüme kayar. */
   const CONFIG_STEPS = [
-    // { id: 'material', label: 'Malzeme Özellikleri', icon: 'layers' as const },
+    { id: 'description', label: 'Açıklama', icon: 'notes' as const },
     { id: 'scenario', label: 'Senaryo Seçimi', icon: 'tune' as const },
     { id: 'cost', label: 'Maliyet Parametreleri', icon: 'payments' as const },
-    { id: 'rolls', label: 'Rulo Stoku', icon: 'inventory_2' as const },
+    { id: 'rolls', label: 'Rulo Stoğu', icon: 'inventory_2' as const },
     { id: 'orders', label: 'Siparişler', icon: 'list_alt' as const },
   ] as const;
 
@@ -451,6 +466,43 @@ export function ConfigurationForm() {
           </section> */}
 
           <section
+            id="section-description"
+            className="scroll-mt-[5.5rem]"
+            aria-labelledby="heading-description"
+          >
+            <h2 id="heading-description" className="sr-only">Açıklama</h2>
+            <div
+              className={`rounded-xl border shadow-sm overflow-hidden ${
+                missingFields.includes('description') ? 'border-red-300' : 'border-slate-200 bg-white dark:bg-slate-900'
+              }`}
+              key={missingFields.includes('description') ? `description-${validationBlinkKey}` : 'description'}
+            >
+              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/50">
+                <h3 className="text-lg font-bold text-primary">Açıklama</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Bu çalıştırma sonuçlar tablosunda bu açıklama ile listelenecektir. (Zorunlu)
+                </p>
+              </div>
+              <div className="p-6">
+                <input
+                  id="run-description"
+                  type="text"
+                  value={runDescription}
+                  onChange={(e) => setRunDescription(e.target.value)}
+                  placeholder="Örn: Mart ayı ana senaryo, 3 rulo test"
+                  maxLength={500}
+                  className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  aria-required="true"
+                  aria-invalid={missingFields.includes('description')}
+                />
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
+                  {runDescription.length}/500 karakter
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section
             id="section-scenario"
             className="scroll-mt-[5.5rem]"
             aria-labelledby="heading-scenario"
@@ -494,10 +546,17 @@ export function ConfigurationForm() {
             className="scroll-mt-[5.5rem]"
             aria-labelledby="heading-rolls"
           >
-            <h2 id="heading-rolls" className="sr-only">Rulo Stoku</h2>
+            <h2 id="heading-rolls" className="sr-only">Rulo Stoğu</h2>
             <RollSettingsCard
               rolls={rolls}
-              onRollsChange={setRolls}
+              onRollsChange={(newRolls) => {
+                setRolls(newRolls);
+                setStockRollIds((prev) => {
+                  const next = [...prev];
+                  while (next.length < newRolls.length) next.push('');
+                  return next.slice(0, newRolls.length);
+                });
+              }}
               estimatedNeedTon={estimatedNeedTon}
               hasRollsError={missingFields.includes('rolls')}
               blinkValidationKey={validationBlinkKey}

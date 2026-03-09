@@ -56,6 +56,10 @@ export interface OptimizeRequest {
   configurationId?: string;
   /** false ise sadece hesaplama, DB'ye kaydetmez (önizleme modu) */
   saveToDb?: boolean;
+  /** Kısa açıklama; sonuçlar tablosunda ID yerine gösterilir */
+  description?: string;
+  /** Bu çalıştırmada kullanılan stok rulo ID'leri; işleme alında stoktan düşülüp kalanlar tekrar stoka yazılır */
+  stockRollIds?: string[];
 }
 
 export interface SummaryResponse {
@@ -149,6 +153,7 @@ export interface SavedOrderSet {
 /** Tek sipariş (orders tablosu) */
 export interface Order {
   id: string;
+  /** Sipariş adı (zorunlu; arayüzde gösterilir). */
   order_id?: string | null;
   m2: number;
   panel_width: number;
@@ -281,6 +286,8 @@ export interface RunSummary {
   /** Çalıştırma durumu: saved = beklemede/test, processed = işlendi, cancelled = iptal */
   run_status?: string;
   processed_at?: string | null;
+  /** Kısa açıklama (sonuçlar tablosunda ID yerine gösterilir) */
+  description?: string | null;
 }
 
 /** Geçmiş çalıştırma detayı (OptimizeResponse + createdAt, reportUrl, runStatus) */

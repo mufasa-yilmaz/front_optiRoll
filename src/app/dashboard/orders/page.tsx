@@ -75,6 +75,11 @@ export default function OrdersPage() {
   }
 
   async function handleSave() {
+    const name = form.order_id.trim();
+    if (!name) {
+      toast.error('Sipariş adı zorunludur.');
+      return;
+    }
     if (form.m2 <= 0 || form.panel_width <= 0 || form.panel_length <= 0) {
       toast.error('Talep (m²), genişlik ve kesim uzunluğu 0\'dan büyük olmalıdır.');
       return;
@@ -82,7 +87,7 @@ export default function OrdersPage() {
     try {
       await saveOrder({
         id: editingOrder?.id,
-        order_id: form.order_id.trim() || undefined,
+        order_id: name,
         m2: form.m2,
         panel_width: form.panel_width,
         panel_length: form.panel_length,
@@ -108,6 +113,22 @@ export default function OrdersPage() {
       await loadOrders();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Sipariş silinemedi');
+    }
+  }
+
+  /** Seçili siparişleri toplu siler. */
+  async function handleDeleteOrders(selectedOrders: Order[]) {
+    if (selectedOrders.length === 0) return;
+    const ok = window.confirm(`${selectedOrders.length} sipariş silinecek. Emin misiniz?`);
+    if (!ok) return;
+    try {
+      for (const order of selectedOrders) {
+        await deleteOrder(order.id);
+      }
+      toast.success(`${selectedOrders.length} sipariş silindi.`);
+      await loadOrders();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Siparişler silinemedi');
     }
   }
 
@@ -152,6 +173,7 @@ export default function OrdersPage() {
             onDelete={handleDelete}
             onStatusChange={handleStatusChange}
             onAddOrder={openCreateModal}
+            onDeleteOrders={handleDeleteOrders}
           />
         </div>
 

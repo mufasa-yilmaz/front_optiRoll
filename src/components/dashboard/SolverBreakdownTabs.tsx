@@ -226,7 +226,7 @@ export function SolverBreakdownTabs() {
         </div>
       </section>
 
-      <section className="overflow-visible rounded-xl border border-slate-200 bg-white shadow-sm">
+      {/* <section className="overflow-visible rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-6 py-4">
           <div className="flex items-center gap-1 rounded-lg bg-slate-200/60 p-1">
             <button
@@ -491,7 +491,7 @@ export function SolverBreakdownTabs() {
             </div>
           </div>
         </div>
-      </section>
+      </section> */}
     </div>
   );
 }

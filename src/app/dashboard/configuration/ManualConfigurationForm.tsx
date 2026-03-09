@@ -59,6 +59,7 @@ export function ManualConfigurationForm() {
     orders.reduce((sum, o) => sum + o.m2 * (thickness / 1000) * densityGcm3, 0) *
     (1 + safetyStock / 100);
   const [configurationId, setConfigurationId] = useState<string | null>(null);
+  const [runDescription, setRunDescription] = useState('');
   const [isLoadingConfiguration, setIsLoadingConfiguration] = useState(false);
 
   /**
@@ -88,6 +89,7 @@ export function ManualConfigurationForm() {
           setupCost,
           stockCost,
         },
+        description: runDescription?.trim() || undefined,
       };
     },
     [
@@ -101,6 +103,7 @@ export function ManualConfigurationForm() {
       fireCost,
       setupCost,
       stockCost,
+      runDescription,
     ],
   );
 
@@ -217,6 +220,11 @@ export function ManualConfigurationForm() {
    * Manuel analiz/test modunda optimizasyonu tetikler.
    */
   const handleSubmit = useCallback(async () => {
+    if (!runDescription?.trim()) {
+      toast.error('Açıklama alanı zorunludur. Sonuçlar tablosunda görünecek kısa bir açıklama yazın.');
+      scrollToSection('description');
+      return;
+    }
     if (orders.length === 0) {
       toast.error('En az bir sipariş ekleyin.');
       scrollToSection('orders');
@@ -276,16 +284,17 @@ export function ManualConfigurationForm() {
     maxOrdersPerRoll,
     maxRollsPerOrder,
     scrollToSection,
+    runDescription,
   ]);
 
   const totalDemandM2 = orders.reduce((sum, o) => sum + (o.m2 || 0), 0);
 
-  /** Üst adım çubuğu: Malzeme → Senaryo → Maliyet → Stok → Sipariş. Tıklanınca ilgili bölüme kayar. */
+  /** Üst adım çubuğu: Açıklama → Senaryo → Maliyet → Stok → Sipariş. Tıklanınca ilgili bölüme kayar. */
   const CONFIG_STEPS = [
-    // { id: 'material', label: 'Malzeme Özellikleri', icon: 'layers' as const },
+    { id: 'description', label: 'Açıklama', icon: 'notes' as const },
     { id: 'scenario', label: 'Senaryo Seçimi', icon: 'tune' as const },
     { id: 'cost', label: 'Maliyet Parametreleri', icon: 'payments' as const },
-    { id: 'rolls', label: 'Rulo Stoku', icon: 'inventory_2' as const },
+    { id: 'rolls', label: 'Rulo Stoğu', icon: 'inventory_2' as const },
     { id: 'orders', label: 'Siparişler', icon: 'list_alt' as const },
   ] as const;
 
@@ -354,6 +363,37 @@ export function ManualConfigurationForm() {
           </section> */}
 
           <section
+            id="section-description"
+            className="scroll-mt-[5.5rem]"
+            aria-labelledby="heading-description"
+          >
+            <h2 id="heading-description" className="sr-only">Açıklama</h2>
+            <div className="rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden bg-white dark:bg-slate-900">
+              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/50">
+                <h3 className="text-lg font-bold text-primary">Açıklama</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Bu çalıştırma sonuçlar tablosunda bu açıklama ile listelenecektir. (Zorunlu)
+                </p>
+              </div>
+              <div className="p-6">
+                <input
+                  id="manual-run-description"
+                  type="text"
+                  value={runDescription}
+                  onChange={(e) => setRunDescription(e.target.value)}
+                  placeholder="Örn: Mart ayı ana senaryo, 3 rulo test"
+                  maxLength={500}
+                  className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  aria-required="true"
+                />
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
+                  {runDescription.length}/500 karakter
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section
             id="section-scenario"
             className="scroll-mt-[5.5rem]"
             aria-labelledby="heading-scenario"
@@ -390,7 +430,7 @@ export function ManualConfigurationForm() {
             className="scroll-mt-[5.5rem]"
             aria-labelledby="heading-rolls"
           >
-            <h2 id="heading-rolls" className="sr-only">Rulo Stoku</h2>
+            <h2 id="heading-rolls" className="sr-only">Rulo Stoğu</h2>
             <RollSettingsCard
               rolls={rolls}
               onRollsChange={setRolls}

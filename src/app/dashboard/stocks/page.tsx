@@ -83,6 +83,22 @@ export default function StocksPage() {
     }
   }
 
+  /** Seçili ruloları toplu siler. */
+  async function handleDeleteRolls(selectedRolls: StockRoll[]) {
+    if (selectedRolls.length === 0) return;
+    const ok = window.confirm(`${selectedRolls.length} rulo silinecek. Emin misiniz?`);
+    if (!ok) return;
+    try {
+      for (const roll of selectedRolls) {
+        await deleteStockRoll(roll.id);
+      }
+      toast.success(`${selectedRolls.length} rulo silindi.`);
+      await loadRolls();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Rulolar silinemedi');
+    }
+  }
+
   const totalTon = rolls.reduce((sum, r) => sum + Number(r.tonnage), 0);
 
   return (
@@ -111,6 +127,7 @@ export default function StocksPage() {
           onAddRoll={openAddModal}
           onEditRoll={openEditModal}
           onDeleteRoll={handleDeleteRoll}
+          onDeleteRolls={handleDeleteRolls}
         />
       </div>
 

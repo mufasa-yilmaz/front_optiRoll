@@ -24,7 +24,7 @@ interface OrderCreateModalProps {
 
 /**
  * Sipariş oluşturma veya düzenleme modalı.
- * Zorunlu: m2, panel_width, panel_length. Opsiyonel: il, bitiş tarihi, açıklama.
+ * Zorunlu: sipariş adı, m2, panel_width, panel_length. Opsiyonel: il, bitiş tarihi, açıklama.
  */
 export function OrderCreateModal({
   isOpen,
@@ -55,8 +55,9 @@ export function OrderCreateModal({
 
         <div className="space-y-4 overflow-y-auto p-6">
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">Sipariş No (opsiyonel)</label>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700">Sipariş adı *</label>
             <input
+              required
               value={form.order_id}
               onChange={(e) => onFormChange((p) => ({ ...p, order_id: e.target.value }))}
               className="w-full rounded-lg border border-slate-300 bg-slate-50 px-4 py-2.5"

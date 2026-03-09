@@ -39,6 +39,31 @@ function getRunStatusBadgeClass(run: RunSummary): string {
   return 'bg-slate-100 text-slate-700';
 }
 
+/** API bazen summary'i snake_case döndüğü için hem totalFire hem total_fire okuyor. */
+function getSummaryFire(run: RunSummary): number {
+  const s = run.summary as unknown as Record<string, unknown> | undefined;
+  if (!s) return 0;
+  const v = s.totalFire ?? s.total_fire;
+  return typeof v === 'number' && !Number.isNaN(v) ? v : 0;
+}
+
+/** Aynı şekilde totalCost / total_cost. */
+function getSummaryTotalCost(run: RunSummary): number {
+  const s = run.summary as unknown as Record<string, unknown> | undefined;
+  if (!s) return 0;
+  const v = s.totalCost ?? s.total_cost;
+  return typeof v === 'number' && !Number.isNaN(v) ? v : 0;
+}
+
+/** openedRolls / opened_rolls. */
+function getSummaryOpenedRolls(run: RunSummary): number | undefined {
+  const s = run.summary as unknown as Record<string, unknown> | undefined;
+  if (!s) return undefined;
+  const v = s.openedRolls ?? s.opened_rolls;
+  if (typeof v === 'number' && !Number.isNaN(v)) return v;
+  return undefined;
+}
+
 /** Durum filtresi seçenekleri */
 const STATUS_FILTER_OPTIONS = [
   { value: 'all', label: 'Tümü' },
@@ -56,6 +81,9 @@ export function SonucListTable() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  /** Toplu silme için seçili çalışma file_id'leri */
+  const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
   const [searchId, setSearchId] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sortKey, setSortKey] = useState<'date' | 'totalCost' | 'totalFire'>('date');
@@ -90,6 +118,11 @@ export function SonucListTable() {
       setDeletingFileId(fileId);
       await deleteRun(fileId);
       setRuns((prev) => prev.filter((r) => r.file_id !== fileId));
+      setSelectedFileIds((prev) => {
+        const next = new Set(prev);
+        next.delete(fileId);
+        return next;
+      });
       toast.success('Sonuç kaydı silindi.');
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Silme işlemi başarısız';
@@ -98,6 +131,61 @@ export function SonucListTable() {
     } finally {
       setDeletingFileId(null);
     }
+  };
+
+  /**
+   * Tek satır seçimini aç/kapat.
+   */
+  const toggleSelection = (fileId: string) => {
+    setSelectedFileIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(fileId)) next.delete(fileId);
+      else next.add(fileId);
+      return next;
+    });
+  };
+
+  /**
+   * Bu sayfadaki tüm satırları seçer veya seçimi kaldırır.
+   */
+  const toggleSelectAllOnPage = () => {
+    const idsOnPage = pagedRuns.map((r) => r.file_id);
+    const allSelected = idsOnPage.every((id) => selectedFileIds.has(id));
+    setSelectedFileIds((prev) => {
+      const next = new Set(prev);
+      if (allSelected) idsOnPage.forEach((id) => next.delete(id));
+      else idsOnPage.forEach((id) => next.add(id));
+      return next;
+    });
+  };
+
+  /**
+   * Seçilen tüm çalıştırmaları siler (teker teker API çağrısı).
+   */
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedFileIds);
+    if (ids.length === 0) return;
+    const confirmed = window.confirm(
+      `${ids.length} adet çalıştırma silinecek. Bu işlem geri alınamaz. Devam edilsin mi?`
+    );
+    if (!confirmed) return;
+
+    setBulkDeleting(true);
+    let successCount = 0;
+    let failCount = 0;
+    for (const fileId of ids) {
+      try {
+        await deleteRun(fileId);
+        setRuns((prev) => prev.filter((r) => r.file_id !== fileId));
+        successCount += 1;
+      } catch {
+        failCount += 1;
+      }
+    }
+    setSelectedFileIds(new Set());
+    setBulkDeleting(false);
+    if (failCount === 0) toast.success(`${successCount} kayıt silindi.`);
+    else toast.error(`${successCount} silindi, ${failCount} silinemedi.`);
   };
 
   useEffect(() => {
@@ -132,12 +220,12 @@ export function SonucListTable() {
         return (da - db) * factor;
       }
       if (sortKey === 'totalCost') {
-        const ca = a.summary?.totalCost ?? 0;
-        const cb = b.summary?.totalCost ?? 0;
+        const ca = getSummaryTotalCost(a);
+        const cb = getSummaryTotalCost(b);
         return (ca - cb) * factor;
       }
-      const fa = a.summary?.totalFire ?? 0;
-      const fb = b.summary?.totalFire ?? 0;
+      const fa = getSummaryFire(a);
+      const fb = getSummaryFire(b);
       return (fa - fb) * factor;
     });
 
@@ -219,6 +307,32 @@ export function SonucListTable() {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+          {selectedFileIds.size > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">
+                {selectedFileIds.size} seçili
+              </span>
+              <button
+                type="button"
+                onClick={handleBulkDelete}
+                disabled={bulkDeleting}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                <span className={`material-symbols-outlined text-[18px] ${bulkDeleting ? 'animate-spin' : ''}`}>
+                  {bulkDeleting ? 'progress_activity' : 'delete'}
+                </span>
+                {bulkDeleting ? 'Siliniyor...' : 'Seçilenleri sil'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedFileIds(new Set())}
+                disabled={bulkDeleting}
+                className="text-sm text-gray-600 hover:text-gray-800"
+              >
+                Seçimi kaldır
+              </button>
+            </div>
+          )}
           <div className="relative">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">
               search
@@ -253,14 +367,14 @@ export function SonucListTable() {
               <option value="totalCost">Toplam Maliyet</option>
               <option value="totalFire">Fire (ton)</option>
             </select>
-            <select
+            {/* <select
               value={sortDirection}
               onChange={(e) => setSortDirection(e.target.value as 'asc' | 'desc')}
               className="px-2 py-2 rounded-lg border border-gray-300 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-secondary/30 focus:border-secondary bg-white"
             >
               <option value="desc">Azalan</option>
               <option value="asc">Artan</option>
-            </select>
+            </select> */}
           </div>
         </div>
       </div>
@@ -268,8 +382,19 @@ export function SonucListTable() {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
+              <th className="px-4 py-3 text-left">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={pagedRuns.length > 0 && pagedRuns.every((r) => selectedFileIds.has(r.file_id))}
+                    onChange={toggleSelectAllOnPage}
+                    className="rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Seç</span>
+                </label>
+              </th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                Çalışma ID
+                Açıklama
               </th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
                 Durum
@@ -295,14 +420,26 @@ export function SonucListTable() {
             {pagedRuns.map((run) => (
               <tr
                 key={run.id}
-                className="hover:bg-third/30 transition-colors group"
+                className={`hover:bg-third/30 transition-colors group ${selectedFileIds.has(run.file_id) ? 'bg-primary/5' : ''}`}
               >
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-4 py-4">
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedFileIds.has(run.file_id)}
+                      onChange={() => toggleSelection(run.file_id)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="rounded border-gray-300 text-primary focus:ring-primary"
+                    />
+                  </label>
+                </td>
+                <td className="px-6 py-4">
                   <Link
                     href={`/dashboard/sonuc/${run.file_id}`}
-                    className="text-sm font-medium text-primary hover:text-secondary font-mono"
+                    className="text-sm font-medium text-primary hover:text-secondary"
+                    title={run.description ? `#${run.file_id}` : undefined}
                   >
-                    #{run.file_id}
+                    {run.description?.trim() || `#${run.file_id}`}
                   </Link>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -314,13 +451,13 @@ export function SonucListTable() {
                   {formatDate(run.created_at)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 text-right font-medium">
-                  ₺{formatTL(run.summary?.totalCost ?? 0)}
+                  ₺{formatTL(getSummaryTotalCost(run))}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right">
-                  {formatTL(run.summary?.totalFire ?? 0)} ton
+                  {formatTL(getSummaryFire(run))} ton
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right">
-                  {run.summary?.openedRolls ?? '-'}
+                  {getSummaryOpenedRolls(run) ?? '-'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-center">
                   <div className="inline-flex items-center gap-3">

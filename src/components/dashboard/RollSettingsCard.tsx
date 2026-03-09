@@ -15,7 +15,7 @@ export interface RollSettingsCardProps {
   onRollsChange: (rolls: number[]) => void;
   /** Tahmini ihtiyaç (ton) - gösterim için */
   estimatedNeedTon?: number;
-  /** Hazır stok setleri - verilirse Rulo Stoku bölümünde dropdown gösterilir */
+  /** Hazır stok setleri - verilirse Rulo Stoğu bölümünde dropdown gösterilir */
   stockSets?: StockSetOption[];
   /** Seçili hazır stok seti id */
   selectedStockSetId?: string;
@@ -30,7 +30,7 @@ export interface RollSettingsCardProps {
 }
 
 /**
- * Rulo stoku kartı: her rulonun ağırlığını manuel giriş; isteğe bağlı hazır stok seti seçimi.
+ * Rulo stoğu kartı: her rulonun ağırlığını manuel giriş; isteğe bağlı hazır stok seti seçimi.
  */
 export function RollSettingsCard({
   rolls,
@@ -100,7 +100,7 @@ export function RollSettingsCard({
   );
 
   return (
-    <DashboardCard title="Rulo Stoku" icon="inventory_2" animationDelayMs={75} headerRight={headerRight}>
+    <DashboardCard title="Rulo Stoğu" icon="inventory_2" animationDelayMs={75} headerRight={headerRight}>
       <div className="space-y-4">
         <label className="block text-xs font-medium text-slate-600 flex items-center gap-1">
           <span>Rulo Ağırlıkları (ton)</span>

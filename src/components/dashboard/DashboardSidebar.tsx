@@ -6,15 +6,15 @@ import { usePathname, useRouter } from 'next/navigation';
 /** Dashboard sidebar sabit işlemler menü öğeleri */
 const MAIN_NAV_ITEMS = [
   { href: '/dashboard', label: 'Kontrol Paneli', icon: 'dashboard' },
-  { href: '/dashboard/stocks', label: 'Stok Setleri', icon: 'inventory_2' },
-  { href: '/dashboard/orders', label: 'Sipariş Setleri', icon: 'list_alt' },
+  { href: '/dashboard/stocks', label: 'Stok Yönetimi', icon: 'inventory_2' },
+  { href: '/dashboard/orders', label: 'Sipariş Yönetimi', icon: 'list_alt' },
 ] as const;
 
 /** Dashboard sidebar analiz işlemleri menü öğeleri */
 const ANALYTICS_NAV_ITEMS = [
   { href: '/dashboard/configuration', label: 'Optimizasyon', icon: 'tune' },
   { href: '/dashboard/configuration/manual', label: 'Analiz & Test', icon: 'science' },
-  { href: '/dashboard/sonuc', label: 'Sonuçlar', icon: 'analytics' },
+  { href: '/dashboard/sonuc', label: 'Optimizasyon Sonuçları', icon: 'analytics' },
   { href: '/dashboard/kesim-karsilastirma', label: 'Kesim Karşılaştırması', icon: 'compare' },
 ] as const;
 
