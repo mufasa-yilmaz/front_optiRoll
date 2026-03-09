@@ -10,10 +10,13 @@ import {
   CostParametersCard,
   OrdersSummaryCard,
   DashboardFooterCta,
+  ConfigurationSummaryCard,
 } from '@/components';
+import { StickySummaryAside } from './StickySummaryAside';
 import {
   optimize,
   getConfigurationById,
+  ROLL_ORDER_UNLIMITED,
   type OptimizeRequest,
 } from '@/lib/api';
 import { useOptimization } from '@/contexts/OptimizationContext';
@@ -39,9 +42,11 @@ export function ManualConfigurationForm() {
 
   const [thickness, setThickness] = useState(0.75);
   const [density, setDensity] = useState(7850);
-  const [safetyStock, setSafetyStock] = useState(12);
-  const [maxOrdersPerRoll, setMaxOrdersPerRoll] = useState(2);
-  const [maxRollsPerOrder, setMaxRollsPerOrder] = useState(2);
+  /** Güvenlik stoğu % — varsayılan 0. */
+  const [safetyStock, setSafetyStock] = useState(0);
+  /** Varsayılan yok — kullanıcı sayı girmeli veya "Sonsuz" seçmeli. */
+  const [maxOrdersPerRoll, setMaxOrdersPerRoll] = useState<number | undefined>(undefined);
+  const [maxRollsPerOrder, setMaxRollsPerOrder] = useState<number | undefined>(undefined);
   const [rolls, setRolls] = useState<number[]>([10, 10, 10]);
   const [fireCost, setFireCost] = useState(450);
   const [setupCost, setSetupCost] = useState(120);
@@ -74,8 +79,8 @@ export function ManualConfigurationForm() {
         orders: validOrders.map((o) => ({ m2: o.m2, panelWidth: o.panelWidth, panelLength: o.panelLength ?? 1 })),
         rollSettings: {
           rolls: rolls.filter((r) => r > 0),
-          maxOrdersPerRoll,
-          maxRollsPerOrder,
+          maxOrdersPerRoll: maxOrdersPerRoll as number,
+          maxRollsPerOrder: maxRollsPerOrder as number,
         },
         costs: {
           fireCost,
@@ -147,17 +152,37 @@ export function ManualConfigurationForm() {
     loadConfiguration();
   }, [searchParams]);
 
+  /** İlgili bölümü görünür yapmak için yumuşak kaydırma yapar. */
+  const scrollToSection = useCallback((sectionId: string) => {
+    const el = document.getElementById(`section-${sectionId}`);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
+
   /**
    * Manuel analiz/test modunda optimizasyonu tetikler.
    */
   const handleSubmit = useCallback(async () => {
     if (orders.length === 0) {
       toast.error('En az bir sipariş ekleyin.');
+      scrollToSection('orders');
       return;
     }
     const validOrders = getValidOrders();
     if (validOrders.length === 0) {
       toast.error('Geçerli sipariş bulunamadı. m², panel genişliği ve kesim uzunluğu 0\'dan büyük olmalıdır.');
+      scrollToSection('orders');
+      return;
+    }
+    const maxOrdersValid = maxOrdersPerRoll != null && (maxOrdersPerRoll === ROLL_ORDER_UNLIMITED || maxOrdersPerRoll > 0);
+    if (!maxOrdersValid) {
+      toast.error('"1 ruloda maksimum kaç farklı sipariş?" alanı zorunludur. Bir sayı girin veya Sonsuz seçin.');
+      scrollToSection('scenario');
+      return;
+    }
+    const maxRollsValid = maxRollsPerOrder != null && (maxRollsPerOrder === ROLL_ORDER_UNLIMITED || maxRollsPerOrder > 0);
+    if (!maxRollsValid) {
+      toast.error('"1 sipariş için maksimum kaç rulo?" alanı zorunludur. Bir sayı girin veya Sonsuz seçin.');
+      scrollToSection('scenario');
       return;
     }
     setLoading(true);
@@ -165,8 +190,8 @@ export function ManualConfigurationForm() {
 
     try {
       const request = buildOptimizeRequest(validOrders);
-      const minDelayMs = 10000;
-      const maxDelayMs = 14000;
+      const minDelayMs = 3000;
+      const maxDelayMs = 5000;
       const startTime = performance.now();
       const result = await optimize(request);
       const targetTotal =
@@ -193,68 +218,174 @@ export function ManualConfigurationForm() {
     setLoading,
     setError,
     router,
+    maxOrdersPerRoll,
+    maxRollsPerOrder,
+    scrollToSection,
   ]);
+
+  const totalDemandM2 = orders.reduce((sum, o) => sum + (o.m2 || 0), 0);
+
+  /** Üst adım çubuğu: Malzeme → Senaryo → Maliyet → Stok → Sipariş. Tıklanınca ilgili bölüme kayar. */
+  const CONFIG_STEPS = [
+    { id: 'material', label: 'Malzeme Özellikleri', icon: 'layers' as const },
+    { id: 'scenario', label: 'Senaryo Seçimi', icon: 'tune' as const },
+    { id: 'cost', label: 'Maliyet Parametreleri', icon: 'payments' as const },
+    { id: 'rolls', label: 'Rulo Stoku', icon: 'inventory_2' as const },
+    { id: 'orders', label: 'Siparişler', icon: 'list_alt' as const },
+  ] as const;
 
   return (
     <>
       {isLoading && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl px-10 py-8 flex flex-col items-center gap-4">
+          <div className="rounded-2xl bg-white dark:bg-slate-900 shadow-xl px-10 py-8 flex flex-col items-center gap-4 ring-1 ring-slate-200 dark:ring-slate-800">
             <span className="material-symbols-outlined text-5xl text-primary animate-spin">
               progress_activity
             </span>
-            <p className="text-lg font-semibold text-slate-700 animate-pulse">
+            <p className="text-lg font-semibold text-slate-700 dark:text-slate-200 animate-pulse">
               Manuel analiz çalıştırılıyor...
             </p>
-            <p className="text-sm text-slate-500">Bu işlem 10–14 saniye sürebilir</p>
+            <p className="text-sm text-slate-500">Bu işlem zaman alabilir, lütfen bekleyiniz.</p>
           </div>
         </div>
       )}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        <aside className="lg:col-span-4 space-y-6">
-          <MaterialPropertiesCard
-            thickness={thickness}
-            onThicknessChange={setThickness}
-            density={density}
-            onDensityChange={setDensity}
-          />
-          <ScenarioSelectionCard
-            safetyStock={safetyStock}
-            onSafetyStockChange={setSafetyStock}
-            maxOrdersPerRoll={maxOrdersPerRoll}
-            onMaxOrdersPerRollChange={setMaxOrdersPerRoll}
-            maxRollsPerOrder={maxRollsPerOrder}
-            onMaxRollsPerOrderChange={setMaxRollsPerOrder}
-          />
-        </aside>
-        <div className="lg:col-span-8 flex flex-col gap-6">
-          <CostParametersCard
-            fireCost={fireCost}
-            onFireCostChange={setFireCost}
-            setupCost={setupCost}
-            onSetupCostChange={setSetupCost}
-            stockCost={stockCost}
-            onStockCostChange={setStockCost}
-          />
-          <RollSettingsCard
-            rolls={rolls}
-            onRollsChange={setRolls}
-            estimatedNeedTon={estimatedNeedTon}
-          />
-          <OrdersSummaryCard
-            orders={orders}
-            onOrdersChange={setOrders}
-            thickness={thickness}
-            density={density}
-          />
+
+      <div className="mb-6">
+        <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+          Manuel Analiz &amp; Test
+        </h1>
+        <p className="mt-2 text-slate-500 dark:text-slate-400">
+          Malzeme özellikleri, senaryo seçimi, maliyet parametreleri, stok ve siparişleri sırayla yapılandırın.
+        </p>
+      </div>
+
+      {/* Sticky adım çubuğu: aşağı kaydırınca üstte sabit kalır, bölümler arası geçiş her zaman erişilebilir. */}
+      <div className="sticky top-0 z-20 min-h-[5rem] -mx-4 px-4 lg:-mx-8 lg:px-8 py-2 mb-8 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-center">
+        <div className="overflow-x-auto pb-1">
+          <div className="flex min-w-max">
+            {CONFIG_STEPS.map((step, idx) => (
+              <button
+                key={step.id}
+                type="button"
+                onClick={() => scrollToSection(step.id)}
+                className={`flex flex-col items-center gap-2 border-b-2 px-4 sm:px-6 pb-3 pt-2 transition-colors shrink-0 ${
+                  idx === 0
+                    ? 'border-primary text-slate-900 dark:text-white'
+                    : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                }`}
+              >
+                <span className="material-symbols-outlined text-xl">{step.icon}</span>
+                <span className="text-xs sm:text-sm font-bold whitespace-nowrap">{step.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
+
+      <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
+        <div className="flex-1 flex flex-col gap-6">
+          <section
+            id="section-material"
+            className="scroll-mt-[5.5rem]"
+            aria-labelledby="heading-material"
+          >
+            <h2 id="heading-material" className="sr-only">Malzeme Özellikleri</h2>
+            <MaterialPropertiesCard
+              thickness={thickness}
+              onThicknessChange={setThickness}
+              density={density}
+              onDensityChange={setDensity}
+            />
+          </section>
+
+          <section
+            id="section-scenario"
+            className="scroll-mt-[5.5rem]"
+            aria-labelledby="heading-scenario"
+          >
+            <h2 id="heading-scenario" className="sr-only">Senaryo Seçimi</h2>
+            <ScenarioSelectionCard
+              safetyStock={safetyStock}
+              onSafetyStockChange={setSafetyStock}
+              maxOrdersPerRoll={maxOrdersPerRoll}
+              onMaxOrdersPerRollChange={setMaxOrdersPerRoll}
+              maxRollsPerOrder={maxRollsPerOrder}
+              onMaxRollsPerOrderChange={setMaxRollsPerOrder}
+            />
+          </section>
+
+          <section
+            id="section-cost"
+            className="scroll-mt-[5.5rem]"
+            aria-labelledby="heading-cost"
+          >
+            <h2 id="heading-cost" className="sr-only">Maliyet Parametreleri</h2>
+            <CostParametersCard
+              fireCost={fireCost}
+              onFireCostChange={setFireCost}
+              setupCost={setupCost}
+              onSetupCostChange={setSetupCost}
+              stockCost={stockCost}
+              onStockCostChange={setStockCost}
+            />
+          </section>
+
+          <section
+            id="section-rolls"
+            className="scroll-mt-[5.5rem]"
+            aria-labelledby="heading-rolls"
+          >
+            <h2 id="heading-rolls" className="sr-only">Rulo Stoku</h2>
+            <RollSettingsCard
+              rolls={rolls}
+              onRollsChange={setRolls}
+              estimatedNeedTon={estimatedNeedTon}
+            />
+          </section>
+
+          <section
+            id="section-orders"
+            className="scroll-mt-[5.5rem]"
+            aria-labelledby="heading-orders"
+          >
+            <h2 id="heading-orders" className="sr-only">Siparişler</h2>
+            <OrdersSummaryCard
+              orders={orders}
+              onOrdersChange={setOrders}
+              thickness={thickness}
+              density={density}
+            />
+          </section>
+        </div>
+
+        <StickySummaryAside>
+          <ConfigurationSummaryCard
+            thickness={thickness}
+            density={density}
+            rollsCount={rolls.length}
+            totalDemandM2={totalDemandM2}
+            safetyStock={safetyStock}
+            maxOrdersPerRoll={maxOrdersPerRoll}
+            maxRollsPerOrder={maxRollsPerOrder}
+          >
+            <DashboardFooterCta onSubmit={handleSubmit} isLoading={isLoading} />
+          </ConfigurationSummaryCard>
+          <div className="rounded-xl bg-primary/5 dark:bg-primary/10 p-4 ring-1 ring-primary/10 dark:ring-primary/20">
+            <div className="flex items-start gap-3">
+              <span className="material-symbols-outlined text-primary text-lg mt-0.5 shrink-0">info</span>
+              <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+                Yüksek güvenlik stoğu malzeme kullanımını artırır ancak riski azaltır. Rulo ve sipariş limitlerini &quot;Sonsuz&quot; yaparak sınır koymadan analiz edebilirsiniz.
+              </p>
+            </div>
+          </div>
+        </StickySummaryAside>
+      </div>
+
       {isLoadingConfiguration && (
-        <div className="mt-4 rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-700">
+        <div className="mt-4 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 px-4 py-3 text-sm text-blue-700 dark:text-blue-300">
           Kayıtlı konfigürasyon yükleniyor...
         </div>
       )}
-      <DashboardFooterCta onSubmit={handleSubmit} isLoading={isLoading} />
     </>
   );
 }

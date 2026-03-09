@@ -4,6 +4,7 @@ export { OrdersFiltersBar } from './OrdersFiltersBar';
 export { ProjectsTable } from './ProjectsTable';
 export { OrderCreateFormCard } from './OrderCreateFormCard';
 export { ProjectCreateModal } from './ProjectCreateModal';
+export { ProjectOrderEditModal } from './ProjectOrderEditModal';
 export { CurrentPipelineTable } from './CurrentPipelineTable';
 export { OrdersStatsCards } from './OrdersStatsCards';
 export { toApiOrderRow, fromApiOrderRow, calcWeightTon, MATERIAL_DENSITY_KG_M3 } from './helpers';

@@ -11,6 +11,9 @@ const API_BASE = RAW_API_BASE
     : `https://${RAW_API_BASE.replace(/^\/+/, '').replace(/\/+$/, '')}`
   : '';
 
+/** Rulo/sipariş limiti için "sonsuz" değeri; API'ye bu sayı gönderilir, backend limit uygulamaz. */
+export const ROLL_ORDER_UNLIMITED = 999999;
+
 export interface MaterialInput {
   thickness: number;
   density: number;

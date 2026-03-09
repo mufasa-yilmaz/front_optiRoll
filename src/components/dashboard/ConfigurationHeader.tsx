@@ -27,7 +27,7 @@ export function ConfigurationHeader() {
               href="/dashboard"
               className="hover:text-primary transition-colors"
             >
-              Dashboard
+              Kontrol Paneli
             </Link>
             <Link
               href="/dashboard/configuration"

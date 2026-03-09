@@ -1,4 +1,3 @@
-import { useRef, useEffect, useState } from 'react';
 import type { SavedOrderSet } from '@/lib/api';
 import { formatOrderSetDate, fromApiOrderRow, getProjectProgress } from './helpers';
 import { getPriorityBadge, getPriorityLabel, getStatusIcon, getStatusLabel, getStatusTextClass } from './helpers';
@@ -28,8 +27,6 @@ export function ProjectsTable({
   onEditProjectOrder,
   onDeleteProjectOrder,
 }: ProjectsTableProps) {
-  const [openMenuSetId, setOpenMenuSetId] = useState<string | null>(null);
-
   return (
     <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <table className="w-full border-collapse text-left">
@@ -40,7 +37,7 @@ export function ProjectsTable({
             <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Proje Adı</th>
             <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Oluşturulma Tarihi</th>
             <th className="px-4 py-4 text-right text-xs font-bold uppercase tracking-wider text-slate-500">İlerleme</th>
-            <th className="w-24 px-4 py-4" />
+            <th className="px-4 py-4 text-right text-xs font-bold uppercase tracking-wider text-slate-500">İşlemler</th>
           </tr>
         </thead>
         <tbody>
@@ -66,8 +63,6 @@ export function ProjectsTable({
                   setItem={setItem}
                   progress={progress}
                   isExpanded={isExpanded}
-                  openMenuSetId={openMenuSetId}
-                  onOpenMenuChange={setOpenMenuSetId}
                   onToggleExpanded={onToggleExpanded}
                   onApplySet={onApplySet}
                   onDeleteSet={onDeleteSet}
@@ -96,8 +91,6 @@ interface FragmentRowProps {
   setItem: SavedOrderSet;
   progress: number;
   isExpanded: boolean;
-  openMenuSetId: string | null;
-  onOpenMenuChange: (setId: string | null) => void;
   onToggleExpanded: (setId: string) => void;
   onApplySet: (setItem: SavedOrderSet) => void;
   onDeleteSet: (setItem: SavedOrderSet) => void;
@@ -111,8 +104,6 @@ function FragmentRow({
   setItem,
   progress,
   isExpanded,
-  openMenuSetId,
-  onOpenMenuChange,
   onToggleExpanded,
   onApplySet,
   onDeleteSet,
@@ -120,26 +111,10 @@ function FragmentRow({
   onEditProjectOrder,
   onDeleteProjectOrder,
 }: FragmentRowProps) {
-  const menuRef = useRef<HTMLTableCellElement>(null);
-  const isMenuOpen = openMenuSetId === setItem.id;
-
-  /** Menü dışına tıklanınca menüyü kapatır. */
-  useEffect(() => {
-    if (!isMenuOpen) return;
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        onOpenMenuChange(null);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isMenuOpen, onOpenMenuChange]);
-
-  /** Proje silme: onay sonrası onDeleteSet çağrılır ve menü kapatılır. */
+  /** Proje silme: onay sonrası onDeleteSet çağrılır. */
   function handleDeleteProject() {
     if (!window.confirm(`"${setItem.name}" projesini silmek istediğinize emin misiniz?`)) return;
     onDeleteSet(setItem);
-    onOpenMenuChange(null);
   }
 
   /** API sipariş satırını pipeline satır modeline dönüştürür. */
@@ -171,37 +146,31 @@ function FragmentRow({
             <span className="text-xs font-bold text-slate-600">{progress}%</span>
           </div>
         </td>
-        <td className="relative px-4 py-5 text-right" ref={menuRef}>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenMenuChange(isMenuOpen ? null : setItem.id);
-            }}
-            className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-            aria-label="Proje işlemleri"
-          >
-            <span className="material-symbols-outlined">more_vert</span>
-          </button>
-          {isMenuOpen && (
-            <div
-              className="absolute right-4 top-full z-10 mt-1 min-w-[160px] rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
-              role="menu"
+        <td className="px-4 py-5 text-right">
+          <div className="flex justify-end gap-1">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddOrderToProject(setItem);
+              }}
+              className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-primary"
+              aria-label="Projeyi düzenle"
             >
-              <button
-                type="button"
-                role="menuitem"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteProject();
-                }}
-                className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-red-600 transition-colors hover:bg-red-50"
-              >
-                <span className="material-symbols-outlined text-lg">delete</span>
-                Projeyi Sil
-              </button>
-            </div>
-          )}
+              <span className="material-symbols-outlined text-lg">edit</span>
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteProject();
+              }}
+              className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
+              aria-label="Projeyi sil"
+            >
+              <span className="material-symbols-outlined text-lg">delete</span>
+            </button>
+          </div>
         </td>
       </tr>
       {isExpanded && (
@@ -217,7 +186,7 @@ function FragmentRow({
                       <th className="border-b border-slate-100 px-6 py-4">Talep (m²)</th>
                       <th className="border-b border-slate-100 px-6 py-4 text-center">Ağırlık</th>
                       <th className="border-b border-slate-100 px-6 py-4 text-center">Öncelik</th>
-                      <th className="border-b border-slate-100 px-6 py-4">Durum</th>
+                      <th className="border-b border-slate-100 px-6 py-4">Sipariş Durumu</th>
                       <th className="border-b border-slate-100 px-6 py-4 text-right">İşlemler</th>
                     </tr>
                   </thead>
@@ -281,19 +250,19 @@ function FragmentRow({
                 >
                   Projeye Yeni Sipariş Ekle
                 </button>
-                <button
+                {/* <button
                   type="button"
                   onClick={() => onApplySet(setItem)}
                   className="rounded border border-slate-300 px-3 py-1.5 text-xs hover:bg-slate-100"
                 >
                   Seti Yükle
-                </button>
+                </button> */}
                 <button
                   type="button"
                   onClick={() => onDeleteSet(setItem)}
                   className="rounded border border-red-200 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50"
                 >
-                  Seti Sil
+                  Projeyi Sil
                 </button>
               </div>
             </div>

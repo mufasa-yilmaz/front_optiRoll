@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
-import { DashboardPageHeader } from '@/components/dashboard';
 import { ConfigurationForm } from './ConfigurationForm';
 
 export const metadata: Metadata = {
@@ -10,20 +9,14 @@ export const metadata: Metadata = {
 };
 
 /**
- * Dashboard optimizasyon sayfası: giriş parametreleri paneli.
+ * Dashboard optimizasyon sayfası: yeni senaryo düzeni, sol form kartları, sağ özet + CTA.
  */
 export default function ConfigurationPage() {
   return (
-    <main className="flex-1 py-8 px-4 md:px-6 bg-background-light">
-      <div className="container mx-auto max-w-[1400px] flex flex-col gap-6">
-        <DashboardPageHeader
-          title="Optimizasyon"
-          description="Malzeme, senaryo ve maliyet parametrelerini ayarlayın, optimizasyonu başlatın."
-        />
-        <Suspense fallback={<div className="text-sm text-slate-500">Optimizasyon sayfası yükleniyor...</div>}>
-          <ConfigurationForm />
-        </Suspense>
-      </div>
+    <main className="mx-auto w-full max-w-7xl px-4 py-8 lg:px-8 bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 antialiased min-h-0">
+      <Suspense fallback={<div className="text-sm text-slate-500">Optimizasyon sayfası yükleniyor...</div>}>
+        <ConfigurationForm />
+      </Suspense>
     </main>
   );
 }

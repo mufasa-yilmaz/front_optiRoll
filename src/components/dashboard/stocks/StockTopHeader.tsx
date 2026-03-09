@@ -35,7 +35,7 @@ export function StockTopHeader({
               value={searchTerm}
               onChange={(event) => onSearchTermChange(event.target.value)}
               className="w-full rounded-lg bg-slate-100 py-2 pl-10 pr-4 text-sm text-slate-800 outline-none ring-primary/20 transition focus:ring-2"
-              placeholder="Set adi veya ID ara..."
+              placeholder="Set adı veya ID ara..."
               type="text"
             />
           </div>

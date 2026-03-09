@@ -29,3 +29,4 @@ export { RollSettingsCard } from './RollSettingsCard';
 export { CostParametersCard } from './CostParametersCard';
 export { OrdersSummaryCard } from './OrdersSummaryCard';
 export { DashboardFooterCta } from './DashboardFooterCta';
+export { ConfigurationSummaryCard } from './ConfigurationSummaryCard';

@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 
 /** Dashboard sidebar sabit işlemler menü öğeleri */
 const MAIN_NAV_ITEMS = [
-  { href: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
+  { href: '/dashboard', label: 'Kontrol Paneli', icon: 'dashboard' },
   { href: '/dashboard/stocks', label: 'Stok Setleri', icon: 'inventory_2' },
   { href: '/dashboard/orders', label: 'Sipariş Setleri', icon: 'list_alt' },
 ] as const;
@@ -34,7 +34,7 @@ export function DashboardSidebar() {
   }
 
   return (
-    <aside className="w-64 shrink-0 flex flex-col border-r border-slate-200 bg-white min-h-screen">
+    <aside className="w-64 shrink-0 flex flex-col border-r border-slate-200 bg-white h-screen overflow-y-auto">
       <div className="p-6 border-b border-slate-100">
         <Link href="/dashboard" className="flex items-center gap-3">
           <div className="h-9 w-9 flex items-center justify-center rounded-lg bg-primary text-white">

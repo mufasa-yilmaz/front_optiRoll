@@ -29,6 +29,7 @@ export {
   RollSettingsCard,
   CostParametersCard,
   OrdersSummaryCard,
+  ConfigurationSummaryCard,
   DashboardFooterCta,
 } from './dashboard';
 export {

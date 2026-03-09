@@ -16,7 +16,7 @@ export function OrdersFiltersBar({ value, onChange }: OrdersFiltersBarProps) {
             value={value}
             onChange={(event) => onChange(event.target.value)}
             className="w-full rounded-lg border border-slate-200 bg-slate-50 pl-10 text-sm"
-            placeholder="Proje kodu, set adı veya tarihe göre ara..."
+            placeholder="Proje adı veya tarihe göre ara..."
             type="text"
           />
         </div>

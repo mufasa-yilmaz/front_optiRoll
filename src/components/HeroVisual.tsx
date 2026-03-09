@@ -8,7 +8,7 @@ export function HeroVisual() {
       <div className="relative w-full aspect-[4/3] lg:aspect-square">
         <div
           className="absolute inset-0 bg-surface-light dark:bg-surface-dark rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col"
-          data-alt="Abstract interface showing optimized roll cutting plan with colored segments representing minimized waste"
+          data-alt="Fireyi azaltan renkli segmentlerle optimizasyonlu rulo kesim planı arayüzü"
         >
           <div className="h-8 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center px-4 gap-2">
             <div className="size-2.5 rounded-full bg-red-400" />

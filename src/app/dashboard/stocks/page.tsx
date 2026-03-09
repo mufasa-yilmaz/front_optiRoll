@@ -18,7 +18,7 @@ import { RollSettingsCard } from '@/components/dashboard/RollSettingsCard';
  * Stok/rulo seti yönetim sayfası: manuel rulo girişi, kaydetme ve kayıtlı setleri yükleme/silme.
  */
 export default function StocksPage() {
-  const [rolls, setRolls] = useState<number[]>([10, 10, 10]);
+  const [rolls, setRolls] = useState<number[]>([]);
   const [setName, setSetName] = useState('');
   const [stockSets, setStockSets] = useState<SavedStockSet[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,7 +61,7 @@ export default function StocksPage() {
     try {
       await saveStockSet(setName.trim(), validRolls, editingStockSetId || undefined);
       setSetName('');
-      setRolls([10, 10, 10]);
+      setRolls([]);
       setEditingStockSetId(null);
       setIsCreateSetModalOpen(false);
       toast.success(editingStockSetId ? 'Stok seti güncellendi.' : 'Stok seti kaydedildi.');
@@ -76,7 +76,7 @@ export default function StocksPage() {
    */
   function handleApplySet(setItem: SavedStockSet) {
     const mapped = (setItem.rolls || []).map((r) => Number(r)).filter((r) => r > 0);
-    setRolls(mapped.length > 0 ? mapped : [10, 10, 10]);
+    setRolls(mapped.length > 0 ? mapped : []);
     toast.success(`"${setItem.name}" seti yüklendi.`);
   }
 
@@ -102,7 +102,7 @@ export default function StocksPage() {
     const mapped = (setItem.rolls || []).map((item) => Number(item)).filter((item) => item > 0);
     setEditingStockSetId(setItem.id);
     setSetName(setItem.name || '');
-    setRolls(mapped.length > 0 ? mapped : [10, 10, 10]);
+    setRolls(mapped.length > 0 ? mapped : []);
     setIsCreateSetModalOpen(true);
   }
 
@@ -155,7 +155,7 @@ export default function StocksPage() {
   function handleOpenCreateSetModal() {
     setEditingStockSetId(null);
     setSetName('');
-    setRolls([10, 10, 10]);
+    setRolls([]);
     setIsCreateSetModalOpen(true);
   }
 

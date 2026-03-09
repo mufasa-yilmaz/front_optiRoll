@@ -130,9 +130,9 @@ function buildOrderRows(
  * Atık oranına göre durum etiketi döndürür.
  */
 function resolveOrderStatus(wastePct: number): { label: string; className: string } {
-  if (wastePct <= 2) return { label: 'Optimized', className: 'bg-emerald-100 text-emerald-700' };
-  if (wastePct <= 5) return { label: 'Review', className: 'bg-amber-100 text-amber-700' };
-  return { label: 'Attention', className: 'bg-rose-100 text-rose-700' };
+  if (wastePct <= 2) return { label: 'Optimize Edildi', className: 'bg-emerald-100 text-emerald-700' };
+  if (wastePct <= 5) return { label: 'İnceleme', className: 'bg-amber-100 text-amber-700' };
+  return { label: 'Dikkat', className: 'bg-rose-100 text-rose-700' };
 }
 
 /**
@@ -196,7 +196,7 @@ export function SolverBreakdownTabs() {
       <section className="grid grid-cols-1 gap-6 md:grid-cols-4">
         <div className="flex items-start justify-between rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Weight</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Toplam Ağırlık</p>
             <h3 className="mt-1 text-2xl font-bold text-slate-800">
               {formatNumber(totalWeightTon * 1000, 0)} kg
             </h3>
@@ -205,21 +205,21 @@ export function SolverBreakdownTabs() {
         </div>
         <div className="flex items-start justify-between rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Efficiency</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Verimlilik</p>
             <h3 className="mt-1 text-2xl font-bold text-slate-800">%{formatNumber(efficiencyPct, 1)}</h3>
           </div>
           <span className="material-symbols-outlined rounded-lg bg-green-50 p-2 text-green-600">trending_up</span>
         </div>
         <div className="flex items-start justify-between rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Scrap Rate</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Fire Oranı</p>
             <h3 className="mt-1 text-2xl font-bold text-slate-800">%{formatNumber(scrapRatePct, 1)}</h3>
           </div>
           <span className="material-symbols-outlined rounded-lg bg-red-50 p-2 text-red-500">warning</span>
         </div>
         <div className="flex items-start justify-between rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Rolls</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Toplam Rulo</p>
             <h3 className="mt-1 text-2xl font-bold text-slate-800">{totalRolls}</h3>
           </div>
           <span className="material-symbols-outlined rounded-lg bg-purple-50 p-2 text-purple-500">album</span>
@@ -236,7 +236,7 @@ export function SolverBreakdownTabs() {
                 viewMode === 'roll' ? 'bg-white text-primary shadow-sm' : 'text-slate-600'
               }`}
             >
-              Roll-based Results
+              Rulo Bazlı Sonuçlar
             </button>
             <button
               type="button"
@@ -245,13 +245,13 @@ export function SolverBreakdownTabs() {
                 viewMode === 'order' ? 'bg-white text-primary shadow-sm' : 'text-slate-600'
               }`}
             >
-              Order-based Results
+              Sipariş Bazlı Sonuçlar
             </button>
           </div>
           <div className="flex items-center gap-4 text-xs font-bold uppercase tracking-wider text-slate-400">
-            <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-primary" /> Orders</div>
-            <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-slate-300" /> Stock</div>
-            <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-400" /> Scrap</div>
+            <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-primary" /> Siparişler</div>
+            <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-slate-300" /> Stok</div>
+            <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-400" /> Fire</div>
           </div>
         </div>
 
@@ -265,7 +265,7 @@ export function SolverBreakdownTabs() {
           >
             <h4 className="flex items-center gap-2 text-base font-bold text-slate-800">
               <span className="material-symbols-outlined text-primary">texture</span>
-              Master Roll Allocation Visualization
+              Ana Rulo Dağılım Görselleştirmesi
             </h4>
             <div className="space-y-4">
               {rollRows.map((roll) => (
@@ -292,19 +292,19 @@ export function SolverBreakdownTabs() {
                             <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-slate-800" />
                             <div className="space-y-1.5">
                               <div className="flex justify-between border-b border-white/10 pb-1">
-                                <span className="text-slate-300">Roll ID:</span>
+                                <span className="text-slate-300">Rulo No:</span>
                                 <span className="font-mono">R-{roll.rollId}</span>
                               </div>
                               <div className="flex justify-between">
-                                <span className="text-slate-300">Order ID:</span>
+                                <span className="text-slate-300">Sipariş No:</span>
                                 <span className="font-medium">#ORD-{segment.orderId}</span>
                               </div>
                               <div className="flex justify-between">
-                                <span className="text-slate-300">Assigned:</span>
+                                <span className="text-slate-300">Atanan:</span>
                                 <span>{formatNumber(segment.tonnage)} ton</span>
                               </div>
                               <div className="flex justify-between">
-                                <span className="text-slate-300">Utilization:</span>
+                                <span className="text-slate-300">Kullanım:</span>
                                 <span>%{formatNumber((segment.tonnage / roll.totalTonnage) * 100, 1)}</span>
                               </div>
                             </div>
@@ -329,7 +329,7 @@ export function SolverBreakdownTabs() {
                         Kullanılan: {formatNumber(roll.used)} ton · Stok: {formatNumber(roll.stock)} ton · Fire: {formatNumber(roll.fire)} ton
                       </span>
                       <span className="font-bold uppercase text-slate-500">
-                        %{formatNumber(roll.totalTonnage > 0 ? (roll.used / roll.totalTonnage) * 100 : 0, 1)} utilized
+                        %{formatNumber(roll.totalTonnage > 0 ? (roll.used / roll.totalTonnage) * 100 : 0, 1)} kullanıldı
                       </span>
                     </div>
                   </div>
@@ -350,7 +350,7 @@ export function SolverBreakdownTabs() {
             <div className="mb-6 flex items-center justify-between">
               <h4 className="flex items-center gap-2 text-base font-bold text-slate-800">
                 <span className="material-symbols-outlined text-primary">format_list_bulleted</span>
-                Order-based Fulfillment Analytics
+                Sipariş Bazlı Karşılama Analitiği
               </h4>
               <div className="relative">
                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-lg text-slate-400">search</span>
@@ -361,7 +361,7 @@ export function SolverBreakdownTabs() {
                     setPage(1);
                   }}
                   className="w-64 rounded-lg border border-slate-200 bg-slate-50 py-2 pl-10 pr-4 text-sm focus:border-primary focus:ring-primary"
-                  placeholder="Filter by Order ID..."
+                  placeholder="Sipariş no ile filtrele..."
                   type="text"
                 />
               </div>
@@ -370,13 +370,13 @@ export function SolverBreakdownTabs() {
               <table className="w-full border-collapse text-left">
                 <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                   <tr>
-                    <th className="px-6 py-4">Order ID</th>
-                    <th className="px-6 py-4">Client Name</th>
-                    <th className="px-6 py-4 text-center">Qty Required</th>
-                    <th className="px-6 py-4 text-center">Assigned Rolls</th>
-                    <th className="px-6 py-4 text-right">Optimization Waste</th>
-                    <th className="px-6 py-4 text-right">Stock Rate</th>
-                    <th className="px-6 py-4 text-center">Status</th>
+                    <th className="px-6 py-4">Sipariş No</th>
+                    <th className="px-6 py-4">Müşteri Adı</th>
+                    <th className="px-6 py-4 text-center">Miktar (m²)</th>
+                    <th className="px-6 py-4 text-center">Atanan Rulolar</th>
+                    <th className="px-6 py-4 text-right">Fire Oranı</th>
+                    <th className="px-6 py-4 text-right">Stok Oranı</th>
+                    <th className="px-6 py-4 text-center">Durum</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-sm">
@@ -413,23 +413,23 @@ export function SolverBreakdownTabs() {
                                         <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-slate-800" />
                                         <div className="space-y-1.5">
                                           <div className="flex justify-between border-b border-white/10 pb-1">
-                                            <span className="text-slate-300">Roll ID:</span>
+                                            <span className="text-slate-300">Rulo No:</span>
                                             <span className="font-mono">R-{hoverInfo.rollId}</span>
                                           </div>
                                           <div className="flex justify-between">
-                                            <span className="text-slate-300">Order ID:</span>
+                                            <span className="text-slate-300">Sipariş No:</span>
                                             <span className="font-medium">#ORD-{hoverInfo.orderId}</span>
                                           </div>
                                           <div className="flex justify-between">
-                                            <span className="text-slate-300">Assigned:</span>
+                                            <span className="text-slate-300">Atanan:</span>
                                             <span>{formatNumber(hoverInfo.assignedTon)} ton</span>
                                           </div>
                                           <div className="flex justify-between">
-                                            <span className="text-slate-300">Utilization:</span>
+                                            <span className="text-slate-300">Kullanım:</span>
                                             <span>%{formatNumber(hoverInfo.utilizationPct, 1)}</span>
                                           </div>
                                           <div className="flex justify-between">
-                                            <span className="text-slate-300">Stock / Fire:</span>
+                                            <span className="text-slate-300">Stok / Fire:</span>
                                             <span>{formatNumber(hoverInfo.stockTon)} / {formatNumber(hoverInfo.fireTon)} ton</span>
                                           </div>
                                         </div>
@@ -464,7 +464,7 @@ export function SolverBreakdownTabs() {
               </table>
               <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50 p-4 text-xs font-bold uppercase tracking-tight text-slate-500">
                 <p>
-                  Showing {(safePage - 1) * PAGE_SIZE + (pagedOrders.length ? 1 : 0)}-{(safePage - 1) * PAGE_SIZE + pagedOrders.length} of {filteredOrders.length} Orders
+                  {(safePage - 1) * PAGE_SIZE + (pagedOrders.length ? 1 : 0)}–{(safePage - 1) * PAGE_SIZE + pagedOrders.length} / {filteredOrders.length} sipariş gösteriliyor
                 </p>
                 <div className="flex items-center gap-2">
                   <button

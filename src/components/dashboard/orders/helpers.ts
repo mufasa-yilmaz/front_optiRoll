@@ -42,7 +42,7 @@ export function getPriorityLabel(priority: OrderPipelineRow['priority']): string
 export function getStatusLabel(status: OrderPipelineRow['status']): string {
   const map = {
     Pending: 'Beklemede',
-    Optimized: 'Optimize',
+    Optimized: 'Optimize Edildi',
     'In Production': 'Üretimde',
   } as const;
   return map[status];

@@ -80,29 +80,6 @@ export function ProjectCreateModal({
                 type="text"
               />
             </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Proje Kodu</label>
-              <input
-                value={projectCode}
-                onChange={(event) => onProjectCodeChange(event.target.value)}
-                className="w-full rounded-lg border-slate-300 bg-slate-50 px-4 py-2.5 text-slate-900 focus:border-primary focus:ring-2 focus:ring-primary/20"
-                placeholder="Örn: PRJ-2024-001"
-                type="text"
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Departman</label>
-              <select
-                value={department}
-                onChange={(event) => onDepartmentChange(event.target.value)}
-                className="w-full rounded-lg border-slate-300 bg-slate-50 px-4 py-2.5 text-slate-900 focus:border-primary focus:ring-2 focus:ring-primary/20"
-              >
-                <option value="Engineering">Mühendislik</option>
-                <option value="Logistics">Lojistik</option>
-                <option value="Quality Assurance">Kalite Güvence</option>
-                <option value="Safety">İş Güvenliği</option>
-              </select>
-            </div>
             <div className="sm:col-span-2">
               <label className="mb-1.5 block text-sm font-semibold text-slate-700">Açıklama</label>
               <textarea
@@ -130,84 +107,92 @@ export function ProjectCreateModal({
                   placeholder="Örn: ORD-2024-X42"
                 />
               </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 items-start">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 items-stretch">
                 <div className="flex h-full flex-col">
-                  <label className="mb-1 block text-sm font-semibold text-slate-700">Talep (m²)</label>
+                  <label className="mb-1 block text-sm font-semibold text-slate-700">Talep (m²) <span className="text-red-500">*</span></label>
                   <input
                     type="number"
-                    min={1}
+                    min={0}
                     step={1}
-                    value={newOrder.m2}
+                    value={newOrder.m2 === 0 ? '' : newOrder.m2}
                     onChange={(event) => onNewOrderChange((prev) => ({ ...prev, m2: Number(event.target.value) || 0 }))}
                     className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm"
-                    placeholder="100"
+                    placeholder="Örn. 100"
                   />
-                  <p className="mt-1 text-xs text-slate-500">Sipariş toplam alanı, m²</p>
+                  <p className="mt-1 text-xs text-slate-500">Sipariş toplam alanı, m² (zorunlu)</p>
                 </div>
                 <div className="flex h-full flex-col">
-                  <label className="mb-1 block text-sm font-semibold text-slate-700">Genişlik (m)</label>
+                  <label className="mb-1 block text-sm font-semibold text-slate-700">Genişlik (m) <span className="text-red-500">*</span></label>
                   <input
                     type="number"
-                    min={0.5}
+                    min={0}
                     step={0.5}
-                    value={newOrder.widthM}
-                    onChange={(event) => onNewOrderChange((prev) => ({ ...prev, widthM: Number(event.target.value) || 1 }))}
+                    value={newOrder.widthM === 0 ? '' : newOrder.widthM}
+                    onChange={(event) => onNewOrderChange((prev) => ({ ...prev, widthM: Number(event.target.value) || 0 }))}
                     className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm"
-                    placeholder="1"
+                    placeholder="Örn. 1"
                   />
-                  <p className="mt-1 text-xs text-slate-500">Panel genişliği, metre (varsayılan 1 m)</p>
+                  <p className="mt-1 text-xs text-slate-500">Panel genişliği, metre (zorunlu)</p>
                 </div>
                 <div className="flex h-full flex-col">
-                  <label className="mb-1 block text-sm font-semibold text-slate-700">Kesim uzunluğu (m)</label>
+                  <label className="mb-1 block text-sm font-semibold text-slate-700">Kesim uzunluğu (m) <span className="text-red-500">*</span></label>
                   <input
                     type="number"
-                    min={0.5}
+                    min={0}
                     step={0.5}
-                    value={newOrder.panelLengthM ?? 1}
-                    onChange={(event) => onNewOrderChange((prev) => ({ ...prev, panelLengthM: Number(event.target.value) || 1 }))}
+                    value={(newOrder.panelLengthM ?? 0) === 0 ? '' : (newOrder.panelLengthM ?? '')}
+                    onChange={(event) => onNewOrderChange((prev) => ({ ...prev, panelLengthM: Number(event.target.value) || 0 }))}
                     className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm"
-                    placeholder="1"
+                    placeholder="Örn. 1"
                   />
-                  <p className="mt-1 text-xs text-slate-500">Parça başına kesim uzunluğu; bu uzunluk ve katları kesilir</p>
+                  <p className="mt-1 text-xs text-slate-500">Parça başına kesim uzunluğu (zorunlu)</p>
                 </div>
                 <div className="flex h-full flex-col">
-                  <label className="mb-1 block text-sm font-semibold text-slate-700">Malzeme</label>
+                  <label className="mb-1 block text-sm font-semibold text-slate-700">
+                    Malzeme <span className="text-red-500">*</span>
+                  </label>
                   <select
-                    value={newOrder.material}
+                    value={newOrder.material ?? ''}
                     onChange={(event) => onNewOrderChange((prev) => ({ ...prev, material: event.target.value as NewOrderForm['material'] }))}
                     className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm"
                   >
+                    <option value="">Seçim yapınız</option>
                     <option value="galvaniz">Galvaniz</option>
                     <option value="aluminyum">Alüminyum</option>
                   </select>
-                  <p className="mt-1 text-xs text-slate-500">Yoğunluğa göre ağırlık hesaplanır</p>
+                  <p className="mt-1 text-xs text-slate-500">Yoğunluğa göre ağırlık hesaplanır (zorunlu)</p>
                 </div>
                 <div className="flex h-full flex-col">
-                  <label className="mb-1 block text-sm font-semibold text-slate-700">Kalınlık (mm)</label>
+                  <label className="mb-1 block text-sm font-semibold text-slate-700">
+                    Kalınlık (mm) <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="number"
-                    min={0.1}
+                    min={0}
                     step={0.01}
-                    value={newOrder.thicknessMm}
-                    onChange={(event) => onNewOrderChange((prev) => ({ ...prev, thicknessMm: Number(event.target.value) || 0.75 }))}
+                    value={newOrder.thicknessMm === 0 ? '' : newOrder.thicknessMm}
+                    onChange={(event) => onNewOrderChange((prev) => ({ ...prev, thicknessMm: Number(event.target.value) || 0 }))}
                     className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm"
-                    placeholder="0.75"
+                    placeholder="Örn. 0.75"
                   />
-                  <p className="mt-1 text-xs text-slate-500">Malzeme kalınlığı, mm; ağırlık buna göre hesaplanır</p>
+                  <p className="mt-1 text-xs text-slate-500">Malzeme kalınlığı, mm (zorunlu)</p>
                 </div>
                 <div className="flex h-full flex-col">
-                  <label className="mb-1 block text-sm font-semibold text-slate-700">Öncelik</label>
+                  <label className="mb-1 block text-sm font-semibold text-slate-700">
+                    Öncelik <span className="text-red-500">*</span>
+                  </label>
                   <select
-                    value={newOrder.priority}
+                    value={newOrder.priority ?? ''}
                     onChange={(event) => onNewOrderChange((prev) => ({ ...prev, priority: event.target.value as NewOrderForm['priority'] }))}
                     className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm"
                   >
+                    <option value="">Seçim yapınız</option>
                     <option value="Low">Düşük</option>
                     <option value="Medium">Orta</option>
                     <option value="High">Yüksek</option>
                     <option value="Urgent">Acil</option>
                   </select>
-                  <p className="mt-1 text-xs text-slate-500">Üretim sıralaması: Düşük → Acil</p>
+                  <p className="mt-1 text-xs text-slate-500">Üretim sıralaması: Düşük → Acil (zorunlu)</p>
                 </div>
               </div>
               <div className="flex justify-end">
@@ -300,7 +285,7 @@ export function ProjectCreateModal({
             className="flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/20 transition-all hover:bg-primary/90"
           >
             <span className="material-symbols-outlined text-[18px]">check_circle</span>
-            {isEditMode ? 'Projeyi Güncelle' : 'Proje Oluştur'}
+                {isEditMode ? 'Projeyi Güncelle' : 'Proje Oluştur'}
           </button>
         </div>
       </div>

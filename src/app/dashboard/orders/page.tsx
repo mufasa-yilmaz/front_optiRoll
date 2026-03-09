@@ -9,12 +9,14 @@ import {
   OrdersManagementHeader,
   OrdersStatsCards,
   ProjectCreateModal,
+  ProjectOrderEditModal,
   ProjectsTable,
   fromApiOrderRow,
   toApiOrderRow,
   calcWeightTon,
   type NewOrderForm,
   type OrderPipelineRow,
+  type MaterialType,
 } from '@/components/dashboard/orders';
 
 /**
@@ -24,12 +26,12 @@ export default function OrdersPage() {
   const [rows, setRows] = useState<OrderPipelineRow[]>([]);
   const [newOrder, setNewOrder] = useState<NewOrderForm>({
     id: '',
-    m2: 100,
-    widthM: 1,
-    panelLengthM: 1,
-    material: 'galvaniz',
-    thicknessMm: 0.75,
-    priority: 'Medium',
+    m2: 0,
+    widthM: 0,
+    panelLengthM: 0,
+    material: '',
+    thicknessMm: 0,
+    priority: '',
   });
   const [setName, setSetName] = useState('');
   const [orderSets, setOrderSets] = useState<SavedOrderSet[]>([]);
@@ -43,6 +45,8 @@ export default function OrdersPage() {
   const [projectCode, setProjectCode] = useState('');
   const [projectDepartment, setProjectDepartment] = useState('Engineering');
   const [projectDescription, setProjectDescription] = useState('');
+  /** Proje içi sipariş düzenleme modalı: hangi set ve hangi sipariş indeksi */
+  const [orderEditModal, setOrderEditModal] = useState<{ setItem: SavedOrderSet; orderIndex: number } | null>(null);
 
   /**
    * Sipariş setlerini API'den yükler.
@@ -69,12 +73,12 @@ export default function OrdersPage() {
   function resetNewOrderForm() {
     setNewOrder({
       id: '',
-      m2: 100,
-      widthM: 1,
-      panelLengthM: 1,
-      material: 'galvaniz',
-      thicknessMm: 0.75,
-      priority: 'Medium',
+      m2: 0,
+      widthM: 0,
+      panelLengthM: 0,
+      material: '',
+      thicknessMm: 0,
+      priority: '',
     });
   }
 
@@ -87,15 +91,35 @@ export default function OrdersPage() {
 
   /**
    * Modal içindeki siparişi ekler veya düzenleme modunda günceller.
+   * Zorunlu alanlar (m2, genişlik, kesim uzunluğu, kalınlık, malzeme, öncelik) boşsa uyarı gösterir.
    */
   function handleUpsertOrderInDraft() {
-    const m2 = Math.max(0.01, Number(newOrder.m2) || 0.01);
-    const widthM = Math.max(0.01, Number(newOrder.widthM) || 1);
-    const panelLengthM = Math.max(0.01, Number(newOrder.panelLengthM) || 1);
-    const thicknessMm = Math.max(0.1, Number(newOrder.thicknessMm) || 0.75);
+    const m2Num = Number(newOrder.m2) || 0;
+    const widthNum = Number(newOrder.widthM) || 0;
+    const panelNum = Number(newOrder.panelLengthM) || 0;
+    const thicknessNum = Number(newOrder.thicknessMm) || 0;
+
+    const missing: string[] = [];
+    if (m2Num <= 0) missing.push('Talep (m²)');
+    if (widthNum <= 0) missing.push('Genişlik (m)');
+    if (panelNum <= 0) missing.push('Kesim uzunluğu (m)');
+    if (thicknessNum <= 0) missing.push('Kalınlık (mm)');
+    if (!newOrder.material) missing.push('Malzeme');
+    if (!newOrder.priority) missing.push('Öncelik');
+    if (missing.length > 0) {
+      toast.error(`Lütfen şu zorunlu alanları doldurun: ${missing.join(', ')}`);
+      return;
+    }
+
+    const m2 = Math.max(0.01, m2Num);
+    const widthM = Math.max(0.01, widthNum);
+    const panelLengthM = Math.max(0.01, panelNum);
+    const thicknessMm = Math.max(0.1, thicknessNum);
     const widthMm = Math.round(widthM * 1000);
     const lengthM = widthM > 0 ? Number((m2 / widthM).toFixed(4)) : 1;
-    const weightTon = Number(calcWeightTon(m2, thicknessMm, newOrder.material).toFixed(4));
+    const material = (newOrder.material || 'galvaniz') as MaterialType;
+    const priority = (newOrder.priority || 'Medium') as OrderPipelineRow['priority'];
+    const weightTon = Number(calcWeightTon(m2, thicknessMm, material).toFixed(4));
     const fallbackId = `ORD-${new Date().getFullYear()}-${String(rows.length + 1).padStart(3, '0')}`;
     const id = newOrder.id.trim() || fallbackId;
     const candidate: OrderPipelineRow = {
@@ -104,9 +128,9 @@ export default function OrdersPage() {
       lengthM,
       panelLengthM,
       weightTon,
-      priority: newOrder.priority,
+      priority,
       status: 'Pending',
-      material: newOrder.material,
+      material,
       thicknessMm,
     };
     if (editingOrderIndex != null) {
@@ -236,27 +260,34 @@ export default function OrdersPage() {
   }
 
   /**
-   * Var olan proje siparişini modalda düzenleme modunda açar.
+   * Proje içindeki bir siparişi düzenlemek için sipariş düzenleme modalını açar.
    */
   function handleEditProjectOrder(setItem: SavedOrderSet, orderIndex: number) {
     const mappedRows = mapSetOrdersToRows(setItem);
-    const target = mappedRows[orderIndex];
-    if (!target) return;
-    setSetName(setItem.name);
-    setRows(mappedRows);
-    setEditingProjectId(setItem.id);
-    setEditingOrderIndex(orderIndex);
-    const m2 = (target.widthMm / 1000) * target.lengthM;
-    setNewOrder({
-      id: target.id,
-      m2: Number(m2.toFixed(2)),
-      widthM: target.widthMm / 1000,
-      panelLengthM: target.panelLengthM ?? 1,
-      material: target.material ?? 'galvaniz',
-      thicknessMm: target.thicknessMm ?? 0.75,
-      priority: target.priority,
-    });
-    setIsProjectModalOpen(true);
+    if (!mappedRows[orderIndex]) return;
+    setOrderEditModal({ setItem, orderIndex });
+  }
+
+  /**
+   * Sipariş düzenleme modalında kaydedilen değişikliği sete yazar ve API'ye gönderir.
+   */
+  async function handleSaveOrderEdit(updated: OrderPipelineRow) {
+    if (!orderEditModal) return;
+    const { setItem, orderIndex } = orderEditModal;
+    const orders = setItem.orders || [];
+    const newOrders = [...orders];
+    newOrders[orderIndex] = toApiOrderRow(updated);
+    try {
+      await saveOrderSet(setItem.name, newOrders, setItem.id);
+      if (activeProjectName === setItem.name) {
+        setRows(newOrders.map((order, index) => fromApiOrderRow(order, index)));
+      }
+      toast.success('Sipariş güncellendi.');
+      setOrderEditModal(null);
+      await loadOrderSets();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Sipariş güncellenemedi');
+    }
   }
 
   /**
@@ -311,9 +342,9 @@ export default function OrdersPage() {
     <main className="flex-1 py-8 px-4 md:px-6 bg-background-light">
       <div className="container mx-auto max-w-[1280px]">
         <OrdersManagementHeader onCreateProjectClick={handleCreateProjectClick} />
-        <OrdersFiltersBar value={projectSearch} onChange={setProjectSearch} />
+        {/* <OrdersFiltersBar value={projectSearch} onChange={setProjectSearch} /> */}
 
-        <div className="flex gap-4 overflow-x-auto pb-2">
+        {/* <div className="flex gap-4 overflow-x-auto pb-2">
           <div className="bg-white p-4 rounded-xl border border-slate-200 min-w-[140px] shadow-sm">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Beklemede</span>
             <p className="text-2xl font-black text-slate-900">{pendingCount}</p>
@@ -326,7 +357,7 @@ export default function OrdersPage() {
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Üretimde</span>
             <p className="text-2xl font-black text-emerald-600">{productionCount}</p>
           </div>
-        </div>
+        </div> */}
 
         <ProjectsTable
           loading={loading}
@@ -382,6 +413,18 @@ export default function OrdersPage() {
         onDeleteRow={handleDeleteRowFromDraft}
         onClose={handleCloseProjectModal}
         onSaveProject={handleSaveSet}
+      />
+
+      <ProjectOrderEditModal
+        isOpen={orderEditModal != null}
+        onClose={() => setOrderEditModal(null)}
+        projectName={orderEditModal?.setItem.name ?? ''}
+        initialOrder={
+          orderEditModal
+            ? mapSetOrdersToRows(orderEditModal.setItem)[orderEditModal.orderIndex] ?? null
+            : null
+        }
+        onSave={handleSaveOrderEdit}
       />
     </main>
   );

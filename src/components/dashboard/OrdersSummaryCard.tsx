@@ -37,6 +37,8 @@ export interface OrdersSummaryCardProps {
   hasOrdersError?: boolean;
   /** Doğrulama tekrar tetiklendiğinde animasyonu yeniden başlatmak için key */
   blinkValidationKey?: number;
+  /** Manuel "Sipariş Ekle" butonunu göster (hazır set seçimi varsa false yapılabilir) */
+  showManualAdd?: boolean;
 }
 
 /** Benzersiz sipariş ID üretir */
@@ -62,6 +64,7 @@ export function OrdersSummaryCard({
   onOrderSetSelect,
   hasOrdersError,
   blinkValidationKey,
+  showManualAdd = true,
 }: OrdersSummaryCardProps) {
   const formatNumber = (n: number, decimals = 2) =>
     n.toLocaleString('tr-TR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
@@ -69,10 +72,11 @@ export function OrdersSummaryCard({
   const densityGcm3 = density / 1000;
   const showOrderSetSelect = orderSets.length > 0 && onOrderSetSelect;
 
+  /** Yeni sipariş satırı ekler; m², genişlik ve kesim uzunluğu 0 — kullanıcı girecek. */
   const addOrder = () => {
     if (!onOrdersChange) return;
     const newId = nextOrderId(orders);
-    onOrdersChange([...orders, { id: newId, m2: 100, panelWidth: 1, panelLength: 1 }]);
+    onOrdersChange([...orders, { id: newId, m2: 0, panelWidth: 0, panelLength: 0 }]);
   };
 
   const removeOrder = (index: number) => {
@@ -80,10 +84,11 @@ export function OrdersSummaryCard({
     onOrdersChange(orders.filter((_, i) => i !== index));
   };
 
+  /** Sipariş alanını günceller; 0 geçerlidir (kullanıcı doldurana kadar). */
   const updateOrder = (index: number, field: 'm2' | 'panelWidth' | 'panelLength', value: number) => {
     if (!onOrdersChange) return;
     const next = [...orders];
-    next[index] = { ...next[index], [field]: Math.max(0.01, value) };
+    next[index] = { ...next[index], [field]: Math.max(0, value) };
     onOrdersChange(next);
   };
 
@@ -124,7 +129,7 @@ export function OrdersSummaryCard({
                 ))}
               </select>
             )}
-            {editable && (
+            {editable && showManualAdd && (
               <button
                 type="button"
                 onClick={addOrder}
@@ -219,17 +224,20 @@ export function OrdersSummaryCard({
                 <td colSpan={editable ? 6 : 5} className="px-6 py-8 text-center">
                   <p className="text-sm text-slate-500">
                     {editable
-                      ? 'Sipariş eklemek için "Sipariş Ekle" butonuna tıklayın'
+                      ? showManualAdd
+                        ? 'Sipariş eklemek için "Sipariş Ekle" butonuna tıklayın'
+                        : 'Yukarıdan bir hazır sipariş seti seçin'
                       : 'Henüz sipariş yok'}
                   </p>
                 </td>
               </tr>
             ) : (
               orders.map((order, i) => {
-                const pw = order.panelWidth || 1;
-                const pl = order.panelLength ?? 1;
-                const panelCount = Math.max(1, Math.round(order.m2 / (pw * pl)));
-                const effectiveM2 = panelCount * pw * pl;
+                const pw = order.panelWidth ?? 0;
+                const pl = order.panelLength ?? 0;
+                const product = pw * pl;
+                const panelCount = product > 0 ? Math.max(0, Math.round(order.m2 / product)) : 0;
+                const effectiveM2 = panelCount * product;
                 const demandTon = effectiveM2 * (thickness / 1000) * densityGcm3;
                 return (
                   <tr
@@ -243,12 +251,13 @@ export function OrdersSummaryCard({
                       {editable ? (
                         <input
                           type="number"
-                          min={1}
+                          min={0}
                           step={1}
                           value={order.m2}
-                          onChange={(e) =>
-                            updateOrder(i, 'm2', parseFloat(e.target.value) || 1)
-                          }
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            updateOrder(i, 'm2', Number.isNaN(v) ? 0 : Math.max(0, v));
+                          }}
                           className="w-24 text-right rounded border border-slate-300 py-1.5 px-2 text-sm font-mono"
                         />
                       ) : (
@@ -259,12 +268,13 @@ export function OrdersSummaryCard({
                       {editable ? (
                         <input
                           type="number"
-                          min={0.5}
+                          min={0}
                           step={0.5}
                           value={order.panelWidth}
-                          onChange={(e) =>
-                            updateOrder(i, 'panelWidth', parseFloat(e.target.value) || 0.01)
-                          }
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            updateOrder(i, 'panelWidth', Number.isNaN(v) ? 0 : Math.max(0, v));
+                          }}
                           className="w-20 text-right rounded border border-slate-300 py-1.5 px-2 text-sm font-mono"
                         />
                       ) : (
@@ -275,17 +285,18 @@ export function OrdersSummaryCard({
                       {editable ? (
                         <input
                           type="number"
-                          min={0.5}
+                          min={0}
                           step={0.5}
-                          value={order.panelLength ?? 1}
-                          onChange={(e) =>
-                            updateOrder(i, 'panelLength', parseFloat(e.target.value) || 0.01)
-                          }
+                          value={order.panelLength ?? 0}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            updateOrder(i, 'panelLength', Number.isNaN(v) ? 0 : Math.max(0, v));
+                          }}
                           className="w-20 text-right rounded border border-slate-300 py-1.5 px-2 text-sm font-mono"
                           title="Kesim uzunluğu (m); bu uzunluk ve katları kesilir"
                         />
                       ) : (
-                        <span className="font-mono">{formatNumber(order.panelLength ?? 1)}</span>
+                        <span className="font-mono">{formatNumber(order.panelLength ?? 0)}</span>
                       )}
                     </td>
                     <td className="px-6 py-3 whitespace-nowrap text-sm text-slate-600 text-right font-mono">

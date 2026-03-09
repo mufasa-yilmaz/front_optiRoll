@@ -17,7 +17,7 @@ export type OrderPipelineRow = {
   thicknessMm?: number;
 };
 
-/** Yeni sipariş form modeli. */
+/** Yeni sipariş form modeli (modal form state). */
 export type NewOrderForm = {
   id: string;
   /** Talep alanı (m²). */
@@ -26,9 +26,10 @@ export type NewOrderForm = {
   widthM: number;
   /** Panel kesim uzunluğu (m); bu uzunluk ve katları kesilir. */
   panelLengthM?: number;
-  /** Malzeme tipi; yoğunluğa göre ağırlık hesaplanır. */
-  material: MaterialType;
+  /** Malzeme tipi; yoğunluğa göre ağırlık hesaplanır (formda boş başlayabilir). */
+  material: MaterialType | '';
   /** Malzeme kalınlığı (mm). */
   thicknessMm: number;
-  priority: 'Low' | 'Medium' | 'High' | 'Urgent';
+  /** Öncelik seviyesi (formda boş başlayabilir). */
+  priority: 'Low' | 'Medium' | 'High' | 'Urgent' | '';
 };

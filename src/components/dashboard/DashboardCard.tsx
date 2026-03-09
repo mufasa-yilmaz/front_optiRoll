@@ -27,17 +27,18 @@ export function DashboardCard({
   animationDelayMs,
 }: DashboardCardProps) {
   return (
-    <div
-      className={`bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden transition-shadow hover:shadow-md duration-300 animate-fade-in-up [animation-fill-mode:both] ${className}`}
+    <section
+      className={`rounded-xl bg-white dark:bg-slate-900 p-6 shadow-sm ring-1 ring-slate-200 dark:ring-slate-800 overflow-hidden transition-shadow hover:shadow-md duration-300 animate-fade-in-up [animation-fill-mode:both] ${className}`}
       style={animationDelayMs != null ? { animationDelay: `${animationDelayMs}ms` } : undefined}
     >
-      <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-4 flex-wrap bg-third/50">
-        <h2 className="text-lg font-bold text-primary font-display">{title}</h2>
-        {headerRight ?? (
-          <span className="material-symbols-outlined text-slate-400 text-xl">{icon}</span>
-        )}
+      <div className="mb-4 flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-2">
+          <span className="material-symbols-outlined text-primary text-xl">{icon}</span>
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white">{title}</h3>
+        </div>
+        {headerRight}
       </div>
-      <div className="p-6">{children}</div>
-    </div>
+      <div>{children}</div>
+    </section>
   );
 }

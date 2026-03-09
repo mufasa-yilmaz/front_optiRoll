@@ -25,31 +25,30 @@ export function DashboardFooterCta({
 }: DashboardFooterCtaProps) {
   if (onSubmit) {
     return (
-      <div className="mt-8 pt-6 border-t border-slate-200 animate-fade-in-up">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-sm text-slate-500">
-            <span className="material-symbols-outlined text-lg">info</span>
+      <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700 animate-fade-in-up min-w-0">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+            <span className="material-symbols-outlined text-base shrink-0">info</span>
             <span>
-              Model yapılandırması hazır. Tahmini hesaplama süresi:{' '}
-              <span className="font-bold text-slate-700">~25 sn</span>
+              Tahmini süre: <span className="font-semibold text-slate-600 dark:text-slate-300">~25 sn</span>
             </span>
           </div>
-          <div className="w-full md:w-auto flex flex-col sm:flex-row gap-2">
+          <div className="flex flex-col gap-2 min-w-0">
             {onSave && (
               <button
                 type="button"
                 onClick={onSave}
                 disabled={isSaving || isLoading}
-                className="w-full md:w-auto bg-white border border-primary text-primary font-semibold text-base py-3 px-6 rounded-lg shadow-sm transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                className="w-full min-w-0 bg-white dark:bg-slate-800 border border-primary text-primary font-semibold text-sm py-2.5 px-4 rounded-lg shadow-sm transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {isSaving ? (
                   <>
-                    <span className="material-symbols-outlined animate-spin">progress_activity</span>
+                    <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>
                     Kaydediliyor...
                   </>
                 ) : (
                   <>
-                    <span className="material-symbols-outlined">save</span>
+                    <span className="material-symbols-outlined text-lg">save</span>
                     Konfigürasyonu Kaydet
                   </>
                 )}
@@ -59,19 +58,19 @@ export function DashboardFooterCta({
               type="button"
               onClick={onSubmit}
               disabled={isLoading || isSaving}
-              className="w-full md:w-auto bg-secondary hover:bg-primary text-white font-bold text-lg py-3 px-10 rounded-lg shadow-lg shadow-secondary/30 transition-all duration-300 transform hover:-translate-y-0.5 flex items-center justify-center gap-2 group disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
+              className="w-full min-w-0 bg-secondary hover:bg-primary text-white font-semibold text-sm py-2.5 px-4 rounded-lg shadow-md shadow-secondary/20 transition-all duration-300 flex items-center justify-center gap-2 group disabled:opacity-70 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <>
-                  <span className="material-symbols-outlined animate-spin">progress_activity</span>
+                  <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>
                   Hesaplanıyor...
                 </>
               ) : (
                 <>
-                  <span className="material-symbols-outlined transition-transform duration-300 group-hover:rotate-90">
+                  <span className="material-symbols-outlined text-lg transition-transform duration-300 group-hover:rotate-90">
                     settings
                   </span>
-                  Optimizasyon Modelini Çöz
+                  Optimizasyonu Çöz
                 </>
               )}
             </button>
@@ -82,23 +81,22 @@ export function DashboardFooterCta({
   }
 
   return (
-    <div className="mt-8 pt-6 border-t border-slate-200 animate-fade-in-up">
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-2 text-sm text-slate-500">
-          <span className="material-symbols-outlined text-lg">info</span>
+    <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700 animate-fade-in-up min-w-0">
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+          <span className="material-symbols-outlined text-base shrink-0">info</span>
           <span>
-            Model yapılandırması hazır. Tahmini hesaplama süresi:{' '}
-            <span className="font-bold text-slate-700">~25 sn</span>
+            Tahmini süre: <span className="font-semibold text-slate-600 dark:text-slate-300">~25 sn</span>
           </span>
         </div>
         <Link
           href="/dashboard/sonuc"
-          className="w-full md:w-auto bg-secondary hover:bg-primary text-white font-bold text-lg py-3 px-10 rounded-lg shadow-lg shadow-secondary/30 transition-all duration-300 transform hover:-translate-y-0.5 flex items-center justify-center gap-2 group"
+          className="w-full min-w-0 bg-secondary hover:bg-primary text-white font-semibold text-sm py-2.5 px-4 rounded-lg shadow-md shadow-secondary/20 transition-all duration-300 flex items-center justify-center gap-2 group"
         >
-          <span className="material-symbols-outlined transition-transform duration-300 group-hover:rotate-90">
+          <span className="material-symbols-outlined text-lg transition-transform duration-300 group-hover:rotate-90">
             settings
           </span>
-          Optimizasyon Modelini Çöz
+          Optimizasyonu Çöz
         </Link>
       </div>
     </div>

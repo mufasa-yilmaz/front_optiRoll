@@ -40,7 +40,7 @@ export function DashboardLayoutHeader() {
                   : 'text-gray-600 hover:text-primary'
               }`}
             >
-              Dashboard
+              Kontrol Paneli
             </Link>
             <Link
               href="/dashboard/sonuc"

@@ -25,6 +25,8 @@ export interface RollSettingsCardProps {
   hasRollsError?: boolean;
   /** Doğrulama tekrar tetiklendiğinde animasyonu yeniden başlatmak için key */
   blinkValidationKey?: number;
+  /** Manuel "Rulo Ekle" butonunu göster (hazır set seçimi varsa false yapılabilir) */
+  showManualAdd?: boolean;
 }
 
 /**
@@ -39,6 +41,7 @@ export function RollSettingsCard({
   onStockSetSelect,
   hasRollsError,
   blinkValidationKey,
+  showManualAdd = true,
 }: RollSettingsCardProps) {
   const total = rolls.reduce((s, r) => s + r, 0);
   const showStockSetSelect = stockSets.length > 0 && onStockSetSelect;
@@ -53,11 +56,13 @@ export function RollSettingsCard({
     prevLengthRef.current = rolls.length;
   }, [rolls.length]);
 
-  const addRoll = () => onRollsChange([...rolls, 5]);
+  /** Yeni rulo ekler; varsayılan ağırlık 0 ton — kullanıcı girecek. */
+  const addRoll = () => onRollsChange([...rolls, 0]);
   const removeRoll = (i: number) => onRollsChange(rolls.filter((_, idx) => idx !== i));
+  /** Rulo ağırlığını günceller; 0 geçerlidir (kullanıcı doldurana kadar). */
   const updateRoll = (i: number, v: number) => {
     const next = [...rolls];
-    next[i] = Math.max(1, v);
+    next[i] = Math.max(0, v);
     onRollsChange(next);
   };
 
@@ -81,14 +86,16 @@ export function RollSettingsCard({
           ))}
         </select>
       )}
-      <button
-        type="button"
-        onClick={addRoll}
-        className="text-xs font-bold text-secondary hover:text-primary flex items-center gap-1 transition-colors"
-      >
-        <span className="material-symbols-outlined text-base">add</span>
-        Rulo Ekle
-      </button>
+      {showManualAdd && (
+        <button
+          type="button"
+          onClick={addRoll}
+          className="text-xs font-bold text-secondary hover:text-primary flex items-center gap-1 transition-colors"
+        >
+          <span className="material-symbols-outlined text-base">add</span>
+          Rulo Ekle
+        </button>
+      )}
     </div>
   );
 
@@ -113,7 +120,9 @@ export function RollSettingsCard({
         >
           {rolls.length === 0 ? (
             <p className="text-sm text-slate-500 py-4 text-center">
-              Rulo eklemek için &quot;Rulo Ekle&quot; butonuna tıklayın
+              {showManualAdd
+                ? 'Rulo eklemek için "Rulo Ekle" butonuna tıklayın'
+                : 'Yukarıdan bir hazır stok seti seçin'}
             </p>
           ) : (
             rolls.map((ton, i) => (
@@ -124,12 +133,13 @@ export function RollSettingsCard({
                 <span className="text-xs text-slate-500 w-16">Rulo {i + 1}</span>
                 <input
                   type="number"
-                  min={1}
+                  min={0}
                   step={1}
                   value={ton}
-                  onChange={(e) =>
-                    updateRoll(i, parseInt(e.target.value, 10) || 1)
-                  }
+                  onChange={(e) => {
+                    const val = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
+                    updateRoll(i, Number.isNaN(val) ? 0 : Math.max(0, val));
+                  }}
                   className="flex-1 rounded border border-slate-300 py-1.5 px-2 text-sm"
                 />
                 <span className="text-xs text-slate-400">ton</span>
