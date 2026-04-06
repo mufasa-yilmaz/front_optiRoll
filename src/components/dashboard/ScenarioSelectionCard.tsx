@@ -104,13 +104,13 @@ export function ScenarioSelectionCard({
                 <span>1 ruloda maksimum kaç farklı sipariş?</span>
                 <span
                   className="material-symbols-outlined text-[14px] text-slate-400 cursor-help"
-                  title="Aynı rulo üzerinde en fazla kaç farklı sipariş kombinasyonu kullanılacağını sınırlar."
+                  title="Aynı fiziksel rulo üzerinde en fazla kaç farklı siparişe kesim yapılabileceğini sınırlar. Çok sipariş genelde daha fazla hat duruşu ve kurulum baskısı demektir; model bu üst sınırı LP ile uygular (tek tek rulo değişim sayacı yoktur)."
                 >
                   info
                 </span>
               </label>
               <p className="text-[11px] text-slate-500 mb-3">
-                Bir rulo en fazla kaç farklı siparişe kesilebilir
+                Bir ruloda en fazla kaç farklı siparişe pay verilebileceği; sınır düşük tutulursa hat üzerinde sipariş karmaşası ve duraksamalar azaltılır.
               </p>
               {isUnlimited(maxOrdersPerRoll) ? (
                 <div className="flex flex-wrap items-center gap-3">
@@ -187,7 +187,7 @@ export function ScenarioSelectionCard({
                 </span>
               </label>
               <p className="text-[11px] text-slate-500 mb-3">
-                Bir sipariş en fazla kaç farklı rulodan kesilebilir
+                Çift yüzey senaryosunda en az 2 olmalıdır; bir sipariş en fazla kaç farklı rulodan kesilebilir
               </p>
               {isUnlimited(maxRollsPerOrder) ? (
                 <div className="flex flex-wrap items-center gap-3">
@@ -219,8 +219,8 @@ export function ScenarioSelectionCard({
                           : 'border-slate-300'
                       }`}
                       type="number"
-                      min={1}
-                      placeholder="Sayı girin (zorunlu)"
+                      min={2}
+                      placeholder="En az 2 (zorunlu)"
                       value={maxRollsPerOrder ?? ''}
                       onChange={
                         onMaxRollsPerOrderChange
@@ -231,7 +231,7 @@ export function ScenarioSelectionCard({
                                 return;
                               }
                               const num = parseInt(raw, 10);
-                              if (!Number.isNaN(num)) onMaxRollsPerOrderChange(Math.max(1, num));
+                              if (!Number.isNaN(num)) onMaxRollsPerOrderChange(Math.max(2, num));
                             }
                           : undefined
                       }

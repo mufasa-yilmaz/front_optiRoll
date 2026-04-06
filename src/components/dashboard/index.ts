@@ -14,6 +14,7 @@ export { RuloSiparisKullanimChart } from './RuloSiparisKullanimChart';
 export { SolverBreakdownTabs } from './SolverBreakdownTabs';
 export { SolverStatusCards } from './SolverStatusCards';
 export { SolverDetailedSummary } from './SolverDetailedSummary';
+export { SolverOrderRollBreakdown } from './SolverOrderRollBreakdown';
 export { ConfigurationHeader } from './ConfigurationHeader';
 export { DashboardLayoutHeader } from './DashboardLayoutHeader';
 export { DashboardSidebar } from './DashboardSidebar';

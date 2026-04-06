@@ -27,6 +27,9 @@ const STEPS = [
   },
 ] as const;
 
+/**
+ * Pazarlama "Nasıl çalışır" bölümü ve dashboard gelişmiş parametre özetini gösterir.
+ */
 export function SolutionHowItWorks() {
   return (
     <section className="bg-primary relative py-20 px-4 md:px-6 lg:px-16 overflow-hidden">
@@ -78,6 +81,44 @@ export function SolutionHowItWorks() {
               </p>
             </div>
           ))}
+        </div>
+
+        <div
+          className="mt-16 w-full max-w-2xl rounded-xl border border-white/20 bg-white/10 backdrop-blur-sm px-6 py-6 text-left animate-fade-in-up"
+          style={{ animationDelay: '320ms', animationFillMode: 'backwards' }}
+        >
+          <h3 className="text-white text-base font-bold mb-3 flex items-center gap-2">
+            <span className="material-symbols-outlined text-secondary text-[22px]" aria-hidden>
+              settings_suggest
+            </span>
+            Gelişmiş parametreler (dashboard)
+          </h3>
+          <p className="text-secondary/90 text-sm mb-4">
+            Konfigürasyon ekranında motoru işletme kurallarınıza göre ayarlayabilirsiniz:
+          </p>
+          <ul className="text-sm text-white/90 space-y-2 list-disc pl-5 marker:text-secondary">
+            <li>
+              <strong>Kaplanan yüzey (1 / 2):</strong> çift yüzeyde talep çarpanı; m² tek yüzey kabul edilir.
+            </li>
+            <li>
+              <strong>Eşzamanlı iki rulo:</strong> siparişin tek ruloda yarıdan fazlasını almama kısıtı; en az iki
+              rulo paylaşımı.
+            </li>
+            <li>
+              <strong>Araya max sipariş / ceza:</strong> aynı siparişe dönüşte kaç farklı siparişe izin ve ihlal
+              maliyeti (soft ceza).
+            </li>
+            <li>
+              <strong>Ruloda max sipariş:</strong> bir rulo üzerinde kaç farklı siparişe izin (hat karmaşası ve
+              duraksamaları sınırlamak için).
+            </li>
+            <li>
+              <strong>Kurulum maliyeti:</strong> her açılan rulo için zaman / setup bedeli.
+            </li>
+          </ul>
+          <p className="text-xs text-secondary/80 mt-4">
+            Çözümler sayfasındaki interaktif demo aynı alanları sabit örnek siparişlerle dener.
+          </p>
         </div>
       </div>
     </section>

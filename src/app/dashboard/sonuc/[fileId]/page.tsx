@@ -7,6 +7,7 @@ import {
   SolverResultsHeader,
   SolverStatusCards,
   SolverDetailedSummary,
+  SolverOrderRollBreakdown,
   RuloSiparisKullanimChart,
   SolverBreakdownTabs,
 } from '@/components/dashboard';
@@ -94,6 +95,7 @@ export default function SonucDetailPage() {
           <SolverStatusCards />
           <RuloSiparisKullanimChart />
           <SolverDetailedSummary />
+          <SolverOrderRollBreakdown />
           <SolverBreakdownTabs />
         </div>
       </main>

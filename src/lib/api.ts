@@ -53,6 +53,14 @@ export interface OptimizeRequest {
   rollSettings: RollSettingsInput;
   costs: CostsInput;
   safetyStock?: number;
+  /** @deprecated Sunucu optimize yolunda sabit 2 kullanır; gönderilse yok sayılır. */
+  surfaceFactor?: number;
+  /** @deprecated Kaldırıldı; gönderilse yok sayılır. */
+  requireDualRollAllocation?: boolean;
+  /** Araya max kac farkli siparis; asimda soft ceza */
+  maxInterleavingOrders?: number;
+  /** Fazla araya siparis basina ceza birimi (0 = kapali) */
+  interleavingPenaltyCost?: number;
   configurationId?: string;
   /** false ise sadece hesaplama, DB'ye kaydetmez (önizleme modu) */
   saveToDb?: boolean;
@@ -67,6 +75,16 @@ export interface SummaryResponse {
   totalFire: number;
   totalStock: number;
   openedRolls: number;
+  sequencePenalty?: number;
+  interleavingViolationCount?: number;
+}
+
+export interface SequenceViolationItem {
+  rollId: number;
+  orderId: number;
+  distinctInterleavedOrders: number;
+  maxAllowed: number;
+  excess: number;
 }
 
 export interface CuttingPlanItem {
@@ -77,6 +95,10 @@ export interface CuttingPlanItem {
   panelLength?: number;
   tonnage: number;
   m2: number;
+  /** Çift yüzey çözümünde bu (rulo,sipariş) satırının üst yüzeye düşen tonajı */
+  upperTonnage?: number;
+  /** Çift yüzey çözümünde alt yüzeye düşen tonajı */
+  lowerTonnage?: number;
 }
 
 export interface RollStatusItem {
@@ -96,6 +118,9 @@ export interface OptimizeResponse {
   cuttingPlan: CuttingPlanItem[];
   rollStatus: RollStatusItem[];
   fileId: string;
+  sequencePenalty?: number;
+  sequenceViolations?: SequenceViolationItem[];
+  rollOrderSequences?: Record<string, number[]>;
   configurationId?: string | null;
   inputData?: OptimizeRequest;
   /** Supabase Storage'daki rapor URL'i (geçmiş sonuçlar için) */
@@ -114,6 +139,12 @@ export interface ConfigurationSaveRequest {
   name?: string;
   material: MaterialInput;
   safetyStock: number;
+  /** @deprecated Sunucu tarafında sabit çift yüzey; isteğe bağlı geri uyumluluk alanı. */
+  surfaceFactor?: number;
+  /** @deprecated */
+  requireDualRollAllocation?: boolean;
+  maxInterleavingOrders?: number;
+  interleavingPenaltyCost?: number;
   orders: OrderInput[];
   rollSettings: RollSettingsInput;
   costs: CostsInput;
@@ -131,6 +162,10 @@ export interface SavedConfiguration {
   material_thickness: number;
   material_density: number;
   safety_stock: number;
+  surface_factor?: number;
+  require_dual_roll_allocation?: boolean;
+  max_interleaving_orders?: number;
+  interleaving_penalty_cost?: number;
   max_orders_per_roll: number;
   max_rolls_per_order: number;
   fire_cost: number;
@@ -372,6 +407,24 @@ export async function getOrders(status?: string): Promise<{ orders: Order[] }> {
 }
 
 /**
+ * FastAPI `detail` alanını (string veya doğrulama dizisi) tek satır mesaja çevirir.
+ */
+function formatFastApiDetail(detail: unknown): string {
+  if (detail == null) return '';
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) =>
+        typeof item === 'object' && item !== null && 'msg' in item
+          ? String((item as { msg: string }).msg)
+          : JSON.stringify(item),
+      )
+      .join(' ');
+  }
+  return String(detail);
+}
+
+/**
  * Sipariş kaydeder veya günceller.
  */
 export async function saveOrder(data: {
@@ -393,7 +446,8 @@ export async function saveOrder(data: {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: 'Sipariş kaydedilemedi' }));
-    throw new Error(err.detail || 'Sipariş kaydedilemedi');
+    const msg = formatFastApiDetail(err.detail) || 'Sipariş kaydedilemedi';
+    throw new Error(msg);
   }
   return res.json();
 }
@@ -429,7 +483,7 @@ export async function addStockRoll(tonnage: number): Promise<StockRoll> {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: 'Rulo eklenemedi' }));
-    throw new Error(err.detail || 'Rulo eklenemedi');
+    throw new Error(formatFastApiDetail(err.detail) || 'Rulo eklenemedi');
   }
   return res.json();
 }
@@ -446,7 +500,7 @@ export async function updateStockRoll(rollId: string, tonnage: number): Promise<
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: 'Rulo güncellenemedi' }));
-    throw new Error(err.detail || 'Rulo güncellenemedi');
+    throw new Error(formatFastApiDetail(err.detail) || 'Rulo güncellenemedi');
   }
   return res.json();
 }
@@ -457,7 +511,10 @@ export async function updateStockRoll(rollId: string, tonnage: number): Promise<
 export async function deleteStockRoll(rollId: string): Promise<void> {
   const url = `${API_BASE}/api/stock-rolls/${rollId}`;
   const res = await fetch(url, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Rulo silinemedi');
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Rulo silinemedi' }));
+    throw new Error(formatFastApiDetail(err.detail) || 'Rulo silinemedi');
+  }
 }
 
 /**

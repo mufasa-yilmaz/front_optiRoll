@@ -13,6 +13,12 @@ export type StockSetOption = {
 export interface RollSettingsCardProps {
   rolls: number[];
   onRollsChange: (rolls: number[]) => void;
+  /** Aynı siparişe dönüşte araya max kaç farklı sipariş (üst sınır). */
+  maxInterleavingOrders?: number;
+  onMaxInterleavingOrdersChange?: (v: number) => void;
+  /** Fazla araya sipariş başına soft ceza birimi (0 = sıra cezası kapalı). */
+  interleavingPenaltyCost?: number;
+  onInterleavingPenaltyCostChange?: (v: number) => void;
   /** Tahmini ihtiyaç (ton) - gösterim için */
   estimatedNeedTon?: number;
   /** Hazır stok setleri - verilirse Rulo Stoğu bölümünde dropdown gösterilir */
@@ -35,6 +41,10 @@ export interface RollSettingsCardProps {
 export function RollSettingsCard({
   rolls,
   onRollsChange,
+  maxInterleavingOrders = 2,
+  onMaxInterleavingOrdersChange,
+  interleavingPenaltyCost = 0,
+  onInterleavingPenaltyCostChange,
   estimatedNeedTon,
   stockSets = [],
   selectedStockSetId = '',
@@ -168,6 +178,60 @@ export function RollSettingsCard({
             )}
           </p>
         )}
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-3">
+          <div>
+            <p className="text-xs font-semibold text-slate-700">Kaplama talebi</p>
+            <p className="text-[11px] text-slate-500 mt-1">
+              Siparişteki m² tek yüzey olarak alınır; optimizasyon talebi her zaman çift yüzey (2×) ile hesaplanır.
+              Sipariş başına en az iki rulo kullanılır. Üst/alt bant paylaşımı liste sırasına bağlı değildir; aynı rulo
+              sahada önce bir yüzeyde sonra diğerinde kullanılabilir — sonuç ekranındaki üst/alt satırlar yalnızca
+              okunabilirlik için sıralı rulo numarasına göre bölünür.
+            </p>
+          </div>
+          <p className="text-[10px] text-slate-500">
+            Her açılan rulo için zaman maliyeti, Maliyet kartındaki <strong>Kurulum (setup)</strong> tutarıyla
+            hesaplanır.
+          </p>
+          <div className="pt-2 border-t border-slate-200 space-y-2">
+            <p className="text-xs font-semibold text-slate-700">Siparişe geri dönüş (soft ceza)</p>
+            <p className="text-[11px] text-slate-500">
+              Yarım kalan siparişe tekrar dönmeden önce araya giren farklı sipariş sayısı sınırı aşılırsa toplam
+              maliyete ceza eklenir. 0 ceza = sıra optimizasyonu kapalı. Mevcut kesim planı aynı (rulo, sipariş)
+              çiftini tek satırda topladığı için üretim sırası tam anlamıyla modellenmeyebilir; parametreler yine
+              dashboard üzerinden ayarlanır.
+            </p>
+            <div className="flex flex-wrap gap-3 items-end">
+              <div className="flex-1 min-w-[120px]">
+                <label className="block text-[11px] font-medium text-slate-600 mb-1">Araya max sipariş</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={maxInterleavingOrders}
+                  onChange={(e) => {
+                    const n = parseInt(e.target.value, 10);
+                    onMaxInterleavingOrdersChange?.(Number.isNaN(n) ? 0 : Math.max(0, n));
+                  }}
+                  className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs"
+                />
+              </div>
+              <div className="flex-1 min-w-[120px]">
+                <label className="block text-[11px] font-medium text-slate-600 mb-1">Ceza / fazla sipariş</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={interleavingPenaltyCost}
+                  onChange={(e) => {
+                    const n = parseFloat(e.target.value);
+                    onInterleavingPenaltyCostChange?.(Number.isNaN(n) ? 0 : Math.max(0, n));
+                  }}
+                  className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </DashboardCard>
   );

@@ -27,9 +27,34 @@ const INITIAL_ORDERS = [
   { id: 'S1', m2: 1000, panelWidth: 1.0, panelLength: 1 },
 ];
 
+/** Tahmini ihtiyaç ve backend ile aynı: talep çarpanı 2 (çift yüzey). */
+const OPTIMIZATION_SURFACE_FACTOR = 2;
+
 /** Verilen süre kadar (ms) bekleme yapan yardımcı fonksiyon (manuel sayfa için). */
 function waitMs(durationMs: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, durationMs));
+}
+
+/**
+ * Tahmini tonaj ihtiyacini panel adet yuvarlamasi ve yuzey carpaniyla hesaplar.
+ */
+function estimateNeedTon(
+  orders: { m2: number; panelWidth: number; panelLength?: number }[],
+  thicknessMm: number,
+  densityKgM3: number,
+  safetyStockPercent: number,
+  surfaceFactor: number,
+): number {
+  const densityGcm3 = densityKgM3 / 1000;
+  const baseTon = orders.reduce((sum, order) => {
+    const pw = order.panelWidth;
+    const pl = order.panelLength ?? 1;
+    if (pw <= 0 || pl <= 0 || order.m2 <= 0) return sum;
+    const panelCount = Math.max(1, Math.round(order.m2 / (pw * pl)));
+    const effectiveM2 = panelCount * pw * pl * Math.max(1, surfaceFactor);
+    return sum + effectiveM2 * (thicknessMm / 1000) * densityGcm3;
+  }, 0);
+  return baseTon * (1 + safetyStockPercent / 100);
 }
 
 /**
@@ -53,11 +78,11 @@ export function ManualConfigurationForm() {
   const [setupCost, setSetupCost] = useState(120);
   const [stockCost, setStockCost] = useState(2.5);
   const [orders, setOrders] = useState<{ id: string; m2: number; panelWidth: number; panelLength?: number }[]>(INITIAL_ORDERS);
+  const [maxInterleavingOrders, setMaxInterleavingOrders] = useState<number>(2);
+  const [interleavingPenaltyCost, setInterleavingPenaltyCost] = useState<number>(60);
 
   const densityGcm3 = density / 1000;
-  const estimatedNeedTon =
-    orders.reduce((sum, o) => sum + o.m2 * (thickness / 1000) * densityGcm3, 0) *
-    (1 + safetyStock / 100);
+  const estimatedNeedTon = estimateNeedTon(orders, thickness, density, safetyStock, OPTIMIZATION_SURFACE_FACTOR);
   const [configurationId, setConfigurationId] = useState<string | null>(null);
   const [runDescription, setRunDescription] = useState('');
   const [isLoadingConfiguration, setIsLoadingConfiguration] = useState(false);
@@ -77,6 +102,8 @@ export function ManualConfigurationForm() {
       return {
         material: { thickness, density: densityGcm3 },
         safetyStock,
+        maxInterleavingOrders: Math.max(0, maxInterleavingOrders),
+        interleavingPenaltyCost: Math.max(0, interleavingPenaltyCost),
         configurationId: configurationId ?? undefined,
         orders: validOrders.map((o) => ({ m2: o.m2, panelWidth: o.panelWidth, panelLength: o.panelLength ?? 1 })),
         rollSettings: {
@@ -96,6 +123,8 @@ export function ManualConfigurationForm() {
       thickness,
       densityGcm3,
       safetyStock,
+      maxInterleavingOrders,
+      interleavingPenaltyCost,
       configurationId,
       rolls,
       maxOrdersPerRoll,
@@ -129,6 +158,8 @@ export function ManualConfigurationForm() {
         const d = Number(mat.density);
         setDensity(d > 100 ? d : (d || 7.85) * 1000);
         setSafetyStock(Number(input.safetyStock) || 0);
+        setMaxInterleavingOrders(Math.max(0, Number(input.maxInterleavingOrders ?? 2)));
+        setInterleavingPenaltyCost(Math.max(0, Number(input.interleavingPenaltyCost ?? 60)));
         const rs = input.rollSettings || {};
         setMaxOrdersPerRoll(Number(rs.maxOrdersPerRoll) ?? undefined);
         setMaxRollsPerOrder(Number(rs.maxRollsPerOrder) ?? undefined);
@@ -178,6 +209,12 @@ export function ManualConfigurationForm() {
         const densityValue = Number(cfg.material_density) || 7.85;
         setDensity(densityValue > 100 ? densityValue : densityValue * 1000);
         setSafetyStock(Number(cfg.safety_stock) || 0);
+        setMaxInterleavingOrders(
+          Math.max(0, Number((cfg as { max_interleaving_orders?: number }).max_interleaving_orders ?? 2)),
+        );
+        setInterleavingPenaltyCost(
+          Math.max(0, Number((cfg as { interleaving_penalty_cost?: number }).interleaving_penalty_cost ?? 60)),
+        );
         setMaxOrdersPerRoll(Number(cfg.max_orders_per_roll) || 1);
         setMaxRollsPerOrder(Number(cfg.max_rolls_per_order) || 1);
         setFireCost(Number(cfg.fire_cost) || 0);
@@ -248,6 +285,11 @@ export function ManualConfigurationForm() {
       scrollToSection('scenario');
       return;
     }
+    if (maxRollsPerOrder !== ROLL_ORDER_UNLIMITED && (maxRollsPerOrder ?? 0) < 2) {
+      toast.error('Çift yüzey senaryosunda "1 sipariş için maksimum kaç rulo?" en az 2 olmalıdır (veya Sonsuz).');
+      scrollToSection('scenario');
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -264,7 +306,7 @@ export function ManualConfigurationForm() {
       if (remaining > 0) {
         await waitMs(remaining);
       }
-      setLastResult(result);
+      setLastResult({ ...result, inputData: request });
       router.push(`/dashboard/sonuc/${result.fileId}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Optimizasyon hatası';
@@ -434,6 +476,10 @@ export function ManualConfigurationForm() {
             <RollSettingsCard
               rolls={rolls}
               onRollsChange={setRolls}
+              maxInterleavingOrders={maxInterleavingOrders}
+              onMaxInterleavingOrdersChange={setMaxInterleavingOrders}
+              interleavingPenaltyCost={interleavingPenaltyCost}
+              onInterleavingPenaltyCostChange={setInterleavingPenaltyCost}
               estimatedNeedTon={estimatedNeedTon}
             />
           </section>
