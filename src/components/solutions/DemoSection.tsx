@@ -6,10 +6,12 @@
 import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { optimize, type OptimizeResponse } from '@/lib/api';
+import { ResultViewProvider } from '@/contexts/ResultViewContext';
 import { buildDemoOptimizeRequest } from './demoConstants';
 import { DemoSidebar } from './DemoSidebar';
 import { KpiCards } from './KpiCards';
 import { VisualCuttingPlan } from './VisualCuttingPlan';
+import { SolverOrderRollBreakdown } from '@/components/dashboard';
 
 /**
  * Ortam değişkeninde API tabanı tanımlı mı kontrol eder (`api.ts` ile uyumlu).
@@ -111,6 +113,11 @@ export function DemoSection() {
           <div className="flex-1 p-6 md:p-8 flex flex-col gap-8 bg-white min-w-0">
             <KpiCards summary={summary} loading={loading} status={result?.status ?? null} />
             <VisualCuttingPlan rollStatus={result?.rollStatus} cuttingPlan={result?.cuttingPlan} />
+            {result ? (
+              <ResultViewProvider result={result}>
+                <SolverOrderRollBreakdown />
+              </ResultViewProvider>
+            ) : null}
           </div>
         </div>
       </div>
