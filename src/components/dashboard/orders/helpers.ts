@@ -1,4 +1,4 @@
-import type { SavedOrderSet } from '@/lib/api';
+import type { Order, SavedOrderSet } from '@/lib/api';
 import type { MaterialType, OrderPipelineRow } from './types';
 
 /** Malzeme yoğunlukları (kg/m³); ağırlık hesaplamada kullanılır. */
@@ -6,6 +6,58 @@ export const MATERIAL_DENSITY_KG_M3: Record<MaterialType, number> = {
   galvaniz: 7850,
   aluminyum: 2700,
 };
+
+/**
+ * Optimizasyon backend’i ile aynı çift yüzey talep çarpanı (SURFACE_FACTOR_OPTIMIZE = 2).
+ */
+export const OPTIMIZATION_SURFACE_FACTOR = 2;
+
+/**
+ * Sipariş tablosunda malzeme bilgisi yokken kullanılan varsayılanlar (konfigürasyon formu ile uyumlu).
+ */
+export const DEFAULT_ORDER_TABLE_MATERIAL = {
+  thicknessMm: 0.75,
+  densityKgM3: MATERIAL_DENSITY_KG_M3.galvaniz,
+} as const;
+
+/**
+ * Tek sipariş için talep tonajını hesaplar: tam sayı panel yuvarlaması, yüzey çarpanı,
+ * ardından hacim × yoğunluk (güvenlik stoğu dahil değil; backend calculate_demand ile uyumlu).
+ */
+export function estimateOrderDemandTon(
+  order: Pick<Order, 'm2' | 'panel_width' | 'panel_length'>,
+  thicknessMm: number,
+  densityKgM3: number,
+  surfaceFactor: number = OPTIMIZATION_SURFACE_FACTOR,
+): number {
+  const densityGcm3 = densityKgM3 / 1000;
+  const pw = Number(order.panel_width);
+  const pl = Number(order.panel_length ?? 1);
+  const m2 = Number(order.m2);
+  if (pw <= 0 || pl <= 0 || m2 <= 0 || thicknessMm <= 0 || densityKgM3 <= 0) return 0;
+  const panelCount = Math.max(1, Math.round(m2 / (pw * pl)));
+  const effectiveM2 = panelCount * pw * pl * Math.max(1, surfaceFactor);
+  return effectiveM2 * (thicknessMm / 1000) * densityGcm3;
+}
+
+/**
+ * Listelenen siparişlerin tahmini talep tonajlarını toplar (satır başı estimateOrderDemandTon ile aynı mantık).
+ */
+export function sumOrdersEstimatedDemandTon(
+  orders: Pick<Order, 'm2' | 'panel_width' | 'panel_length'>[],
+  thicknessMm: number,
+  densityKgM3: number,
+  surfaceFactor: number = OPTIMIZATION_SURFACE_FACTOR,
+): number {
+  return orders.reduce((acc, o) => acc + estimateOrderDemandTon(o, thicknessMm, densityKgM3, surfaceFactor), 0);
+}
+
+/**
+ * Tahmini ton değerini arayüzde göstermek için Türkçe biçimlendirir (ondalık ayırıcı virgül, iki basamak).
+ */
+export function formatTonDisplayTr(ton: number): string {
+  return ton.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 
 /**
  * m², kalınlık ve malzemeden ağırlığı (ton) hesaplar.

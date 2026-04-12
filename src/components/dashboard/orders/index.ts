@@ -9,6 +9,14 @@ export { ProjectCreateModal } from './ProjectCreateModal';
 export { ProjectOrderEditModal } from './ProjectOrderEditModal';
 export { CurrentPipelineTable } from './CurrentPipelineTable';
 export { OrdersStatsCards } from './OrdersStatsCards';
-export { toApiOrderRow, fromApiOrderRow, calcWeightTon, MATERIAL_DENSITY_KG_M3 } from './helpers';
+export {
+  toApiOrderRow,
+  fromApiOrderRow,
+  calcWeightTon,
+  MATERIAL_DENSITY_KG_M3,
+  sumOrdersEstimatedDemandTon,
+  DEFAULT_ORDER_TABLE_MATERIAL,
+  formatTonDisplayTr,
+} from './helpers';
 export type { OrderPipelineRow, NewOrderForm, MaterialType } from './types';
 export type { OrderFormData } from './OrderCreateModal';

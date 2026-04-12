@@ -11,6 +11,7 @@ import {
   OrdersStatsCards,
 } from '@/components/dashboard/orders';
 import type { OrderFormData } from '@/components/dashboard/orders';
+import { DEFAULT_ORDER_TABLE_MATERIAL, sumOrdersEstimatedDemandTon } from '@/components/dashboard/orders/helpers';
 
 const emptyForm: OrderFormData = {
   order_id: '',
@@ -156,16 +157,21 @@ export default function OrdersPage() {
     }
   }
 
-  const pendingCount = orders.filter((o) => o.status === 'Pending').length;
-  const productionCount = orders.filter((o) => o.status === 'In Production').length;
-  const efficiencyRate = orders.length === 0 ? 0 : (productionCount / orders.length) * 100;
+  /** İstatistikte “aktif” sayılan siparişler: beklemede veya üretimde. */
+  const activeOrderCount = orders.filter((o) => o.status === 'Pending' || o.status === 'In Production').length;
+  const totalM2 = orders.reduce((sum, o) => sum + Number(o.m2 || 0), 0);
+  const totalEstimatedTon = sumOrdersEstimatedDemandTon(
+    orders,
+    DEFAULT_ORDER_TABLE_MATERIAL.thicknessMm,
+    DEFAULT_ORDER_TABLE_MATERIAL.densityKgM3,
+  );
 
   return (
     <main className="flex h-full flex-col py-8 px-4 md:px-6 bg-background-light">
-      <div className="container mx-auto flex max-w-[1280px] flex-1 min-h-0 flex-col">
+      <div className="container mx-auto flex max-w-[1280px] min-h-0 min-w-0 flex-1 flex-col">
         <OrdersManagementHeader />
 
-        <div className="mt-6 flex min-h-0 flex-1 flex-col">
+        <div className="mt-6 flex min-h-0 min-w-0 flex-1 flex-col">
           <OrdersTable
             orders={orders}
             loading={loading}
@@ -177,30 +183,33 @@ export default function OrdersPage() {
           />
         </div>
 
-        <div className="mt-6 shrink-0 bg-primary/5 border border-primary/10 rounded-xl p-6 flex items-center gap-4">
-          <div className="bg-primary text-white p-3 rounded-full">
-            <span className="material-symbols-outlined block">insights</span>
-          </div>
-          <div className="flex-1">
-            <h4 className="font-bold text-primary">Optimizasyon</h4>
-            <p className="text-sm text-slate-600">
-              Bekleyen siparişleri seçip optimizasyon sayfasından çalıştırabilirsiniz.
-            </p>
-          </div>
-          <Link
-            href="/dashboard/configuration"
-            className="text-primary font-bold text-sm whitespace-nowrap hover:underline underline-offset-4"
-          >
-            Optimizasyonu Çalıştır
-          </Link>
-        </div>
-
         <div className="mt-6 shrink-0">
           <OrdersStatsCards
-            activeOrders={pendingCount}
-            efficiencyRate={efficiencyRate}
-            remainingStockKg={0}
+            activeOrderCount={activeOrderCount}
+            totalM2={totalM2}
+            totalEstimatedTon={totalEstimatedTon}
           />
+        </div>
+
+        <div className="mt-6 shrink-0 flex flex-col gap-3 rounded-xl border border-primary/10 bg-primary/5 p-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-4">
+            <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary text-white">
+              <span className="material-symbols-outlined text-[26px]">inventory_2</span>
+            </div>
+            <div>
+              <h3 className="font-bold text-primary">Sıradaki adım: Stok yönetimi</h3>
+              <p className="mt-1 text-sm text-slate-600">
+                Rulo stoklarını görüntüleyip düzenlemek için stok yönetimi sayfasına geçin.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/dashboard/stocks"
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-primary/90"
+          >
+            <span>Stok yönetimine git</span>
+            <span className="material-symbols-outlined text-lg">arrow_forward</span>
+          </Link>
         </div>
       </div>
 
