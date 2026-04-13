@@ -201,6 +201,41 @@ export interface Order {
   updated_at?: string;
 }
 
+/** Müşteri teklif talebi (customer_requests tablosu) */
+export interface CustomerRequest {
+  id: string;
+  firma_adi: string;
+  yetkili_adi: string;
+  email: string;
+  telefon?: string | null;
+  m2: number;
+  panel_width: number;
+  panel_length?: number;
+  il?: string | null;
+  bitis_tarihi?: string | null;
+  musteri_notu?: string | null;
+  status: string;
+  admin_notu?: string | null;
+  tahmini_teklif?: string | null;
+  converted_order_id?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+/** Halka açık teklif talebi formu gövdesi */
+export interface CustomerRequestCreatePayload {
+  firma_adi: string;
+  yetkili_adi: string;
+  email: string;
+  telefon: string;
+  m2: number;
+  panel_width: number;
+  panel_length: number;
+  il?: string;
+  bitis_tarihi?: string;
+  musteri_notu?: string;
+}
+
 export interface SavedStockSet {
   id: string;
   name: string;
@@ -459,6 +494,102 @@ export async function deleteOrder(orderId: string): Promise<void> {
   const url = `${API_BASE}/api/orders/${orderId}`;
   const res = await fetch(url, { method: 'DELETE' });
   if (!res.ok) throw new Error('Sipariş silinemedi');
+}
+
+/**
+ * Halka açık teklif talebi oluşturur (giriş gerekmez).
+ */
+export async function createCustomerRequest(
+  payload: CustomerRequestCreatePayload,
+): Promise<{ customerRequest: CustomerRequest }> {
+  const url = `${API_BASE}/api/customer-requests`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Talep gönderilemedi' }));
+    throw new Error(formatFastApiDetail(err.detail) || 'Talep gönderilemedi');
+  }
+  return res.json();
+}
+
+/**
+ * Müşteri taleplerini listeler.
+ */
+export async function getCustomerRequests(
+  status?: string,
+): Promise<{ customerRequests: CustomerRequest[] }> {
+  const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+  const url = `${API_BASE}/api/customer-requests${qs}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Talepler yüklenemedi' }));
+    throw new Error(formatFastApiDetail(err.detail) || 'Talepler yüklenemedi');
+  }
+  return res.json();
+}
+
+/**
+ * Müşteri talebini günceller (durum, admin notu, tahmini teklif).
+ */
+export async function patchCustomerRequest(
+  id: string,
+  body: { status?: string; admin_notu?: string; tahmini_teklif?: string },
+): Promise<{ customerRequest: CustomerRequest }> {
+  const url = `${API_BASE}/api/customer-requests/${encodeURIComponent(id)}`;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Talep güncellenemedi' }));
+    throw new Error(formatFastApiDetail(err.detail) || 'Talep güncellenemedi');
+  }
+  return res.json();
+}
+
+/**
+ * Reddedilmiş müşteri talebini kalıcı olarak siler (backend yalnızca status=rejected kabul eder).
+ */
+export async function deleteCustomerRequest(id: string): Promise<void> {
+  const url = `${API_BASE}/api/customer-requests/${encodeURIComponent(id)}`;
+  const res = await fetch(url, { method: 'DELETE' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Talep silinemedi' }));
+    throw new Error(formatFastApiDetail(err.detail) || 'Talep silinemedi');
+  }
+}
+
+/**
+ * Talebi onaylayıp sipariş oluşturur ve talebi converted yapar.
+ */
+export async function convertCustomerRequestToOrder(
+  requestId: string,
+  order: {
+    order_id: string;
+    m2: number;
+    panel_width: number;
+    panel_length?: number;
+    il?: string;
+    bitis_tarihi?: string;
+    aciklama?: string;
+    status?: string;
+  },
+): Promise<{ order: Order; customerRequest: CustomerRequest }> {
+  const url = `${API_BASE}/api/customer-requests/${encodeURIComponent(requestId)}/convert-to-order`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(order),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Siparişe dönüştürülemedi' }));
+    throw new Error(formatFastApiDetail(err.detail) || 'Siparişe dönüştürülemedi');
+  }
+  return res.json();
 }
 
 /**

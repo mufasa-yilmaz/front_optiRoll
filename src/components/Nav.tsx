@@ -43,6 +43,12 @@ export function Nav() {
               >
                 Fire Karşılaştırması
               </Link>
+              <Link
+                className="text-sm font-medium text-gray-700 hover:text-primary dark:text-gray-300 dark:hover:text-white transition-colors"
+                href="/teklif-talebi"
+              >
+                Teklif talebi
+              </Link>
             </nav>
             <Link
               href="/login"

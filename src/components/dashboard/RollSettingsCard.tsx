@@ -3,6 +3,15 @@
 import { useRef, useEffect } from 'react';
 import { DashboardCard } from './DashboardCard';
 
+/**
+ * Stok toplamı ile tahmini sipariş ihtiyacı arasındaki farkı ton olarak hesaplar.
+ * İhtiyaç yok veya sıfırsa null döner.
+ */
+function stockDeltaVersusOrderNeed(totalStockTon: number, estimatedNeedTon: number | undefined): number | null {
+  if (estimatedNeedTon == null || Number.isNaN(estimatedNeedTon) || estimatedNeedTon <= 0) return null;
+  return totalStockTon - estimatedNeedTon;
+}
+
 /** Hazır stok seti (liste seçimi için) */
 export type StockSetOption = {
   id: string;
@@ -36,7 +45,8 @@ export interface RollSettingsCardProps {
 }
 
 /**
- * Rulo stoğu kartı: her rulonun ağırlığını manuel giriş; isteğe bağlı hazır stok seti seçimi.
+ * Rulo stoğu kartı: her rulonun ağırlığını manuel giriş; stok toplamı ile siparişe göre tahmini ihtiyaç
+ * karşılaştırması (artan / eksik / denge); isteğe bağlı hazır stok seti seçimi.
  */
 export function RollSettingsCard({
   rolls,
@@ -54,6 +64,10 @@ export function RollSettingsCard({
   showManualAdd = true,
 }: RollSettingsCardProps) {
   const total = rolls.reduce((s, r) => s + r, 0);
+  const deltaTon = stockDeltaVersusOrderNeed(total, estimatedNeedTon);
+  /** Sipariş ihtiyacı veya stok satırı varken özet kutusunu göster (stok boş ama ihtiyaç varsa eksik görünür). */
+  const showStockVersusNeedSummary =
+    rolls.length > 0 || (estimatedNeedTon != null && estimatedNeedTon > 0);
   const showStockSetSelect = stockSets.length > 0 && onStockSetSelect;
   const listRef = useRef<HTMLDivElement>(null);
   const prevLengthRef = useRef(rolls.length);
@@ -165,18 +179,66 @@ export function RollSettingsCard({
             ))
           )}
         </div>
-        {rolls.length > 0 && (
-          <p className="text-xs font-medium text-primary bg-primary/10 rounded px-3 py-2">
-            Toplam: {Number(total).toFixed(2)} ton · {rolls.length} rulo
-          </p>
-        )}
-        {estimatedNeedTon != null && rolls.length > 0 && (
-          <p className="text-xs text-slate-500">
-            Tahmini ihtiyaç: ~{Number(estimatedNeedTon).toFixed(2)} ton
-            {total < estimatedNeedTon && (
-              <span className="text-accent-red font-medium ml-1">(Yetersiz tonaj)</span>
+        {showStockVersusNeedSummary && (
+          <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-3 dark:border-slate-700 dark:bg-slate-800/50">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-primary/90 dark:text-primary/80">
+              Yukarıdaki siparişlere göre
+            </p>
+            <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+              Toplam stok:{' '}
+              <span className="font-bold text-primary">{Number(total).toFixed(2)} ton</span>
+              <span className="text-slate-400 dark:text-slate-500">
+                {' '}
+                · {rolls.length} rulo
+                {rolls.length === 0 && (estimatedNeedTon ?? 0) > 0 ? (
+                  <span className="text-amber-600 dark:text-amber-400"> — henüz rulo girilmedi</span>
+                ) : null}
+              </span>
+            </p>
+            {deltaTon != null ? (
+              <>
+                <p className="text-xs text-slate-600 dark:text-slate-300">
+                  Tahmini sipariş ihtiyacı (ton):{' '}
+                  <span className="font-semibold tabular-nums">~{Number(estimatedNeedTon).toFixed(2)}</span>
+                  <span className="text-slate-400 dark:text-slate-500">
+                    {' '}
+                    — seçili sipariş m², çift yüzey (2×) ve malzeme varsayımlarıyla
+                  </span>
+                </p>
+                {deltaTon > 0.01 ? (
+                  <p className="flex items-start gap-2 rounded-md border border-emerald-200 bg-emerald-50/90 px-2.5 py-2 text-xs font-semibold text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/40 dark:text-emerald-100">
+                    <span className="material-symbols-outlined text-[18px] shrink-0 text-emerald-600 dark:text-emerald-400">
+                      trending_up
+                    </span>
+                    <span>
+                      Siparişe göre <span className="tabular-nums">+{deltaTon.toFixed(2)} ton</span> artan stok
+                      (fazla kapasite).
+                    </span>
+                  </p>
+                ) : deltaTon < -0.01 ? (
+                  <p className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50/90 px-2.5 py-2 text-xs font-semibold text-red-900 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-100">
+                    <span className="material-symbols-outlined text-[18px] shrink-0 text-red-600 dark:text-red-400">
+                      trending_down
+                    </span>
+                    <span>
+                      Siparişe göre <span className="tabular-nums">{Math.abs(deltaTon).toFixed(2)} ton</span> eksik
+                      stok (ihtiyaç, mevcut stoktan büyük).
+                    </span>
+                  </p>
+                ) : (
+                  <p className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2.5 py-2 text-xs font-medium text-slate-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200">
+                    <span className="material-symbols-outlined text-[18px] text-slate-500">balance</span>
+                    Siparişe göre stok ile ihtiyaç yaklaşık denge (~±0,01 ton).
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                Fazla veya eksik stok için yukarıdan en az bir sipariş seçin (veya manuel sayfada sipariş satırı ekleyin);
+                tahmini ihtiyaç hesaplanınca bu blok güncellenir.
+              </p>
             )}
-          </p>
+          </div>
         )}
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-3">
           <div>

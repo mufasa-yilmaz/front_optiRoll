@@ -1,13 +1,8 @@
-import { DashboardOverviewHeader, ResultsKpiGrid } from '@/components';
+import { DashboardHomeView } from '@/components/dashboard/DashboardHomeView';
 
 /**
- * Dashboard optimizasyon ana sayfası: genel bakış başlığı ve KPI kartları.
+ * Dashboard ana sayfası: sipariş/stok canlı özeti, son optimizasyon metrikleri ve hızlı yönlendirmeler.
  */
 export default function DashboardPage() {
-  return (
-    <main className="flex-1 px-4 py-8 md:py-12 bg-background-light">
-      <DashboardOverviewHeader />
-      <ResultsKpiGrid />
-    </main>
-  );
+  return <DashboardHomeView />;
 }

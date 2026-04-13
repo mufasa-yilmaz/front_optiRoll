@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 /** Dashboard sidebar sabit işlemler menü öğeleri */
 const MAIN_NAV_ITEMS = [
   { href: '/dashboard', label: 'Kontrol Paneli', icon: 'dashboard' },
+  { href: '/dashboard/musteri-talepleri', label: 'Müşteri talepleri', icon: 'request_quote' },
   { href: '/dashboard/orders', label: 'Sipariş Yönetimi', icon: 'list_alt' },
   { href: '/dashboard/stocks', label: 'Stok Yönetimi', icon: 'inventory_2' },
 ] as const;

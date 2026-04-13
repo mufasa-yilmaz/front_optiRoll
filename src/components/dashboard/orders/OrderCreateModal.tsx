@@ -20,11 +20,15 @@ interface OrderCreateModalProps {
   onFormChange: (updater: (prev: OrderFormData) => OrderFormData) => void;
   onClose: () => void;
   onSave: () => void;
+  /** Başlık metnini özelleştirir (varsayılan: yeni sipariş / düzenle). */
+  titleOverride?: string;
+  /** Birincil buton etiketi (varsayılan: Kaydet / Güncelle). */
+  submitLabel?: string;
 }
 
 /**
  * Sipariş oluşturma veya düzenleme modalı.
- * Zorunlu: sipariş adı, m2, panel_width, panel_length. Opsiyonel: il, bitiş tarihi, açıklama.
+ * Zorunlu: sipariş adı, m2, panel_width, panel_length. Opsiyonel: il, teslim tarihi, açıklama.
  */
 export function OrderCreateModal({
   isOpen,
@@ -34,8 +38,14 @@ export function OrderCreateModal({
   onFormChange,
   onClose,
   onSave,
+  titleOverride,
+  submitLabel,
 }: OrderCreateModalProps) {
   if (!isOpen) return null;
+
+  const headerTitle =
+    titleOverride ?? (isEdit ? 'Siparişi Düzenle' : 'Yeni Sipariş Ekle');
+  const primaryLabel = submitLabel ?? (isEdit ? 'Güncelle' : 'Kaydet');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" onClick={onClose}>
@@ -46,7 +56,7 @@ export function OrderCreateModal({
       >
         <div className="flex items-center justify-between bg-[#1a2233] px-6 py-4">
           <h3 className="text-lg font-bold tracking-tight text-white">
-            {isEdit ? 'Siparişi Düzenle' : 'Yeni Sipariş Ekle'}
+            {headerTitle}
           </h3>
           <button type="button" onClick={onClose} className="text-slate-300 hover:text-white">
             <span className="material-symbols-outlined">close</span>
@@ -107,7 +117,7 @@ export function OrderCreateModal({
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">Bitiş Tarihi (opsiyonel)</label>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700">Teslim Tarihi (opsiyonel)</label>
             <input
               type="date"
               value={form.bitis_tarihi || ''}
@@ -140,7 +150,7 @@ export function OrderCreateModal({
             onClick={onSave}
             className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark"
           >
-            {isEdit ? 'Güncelle' : 'Kaydet'}
+            {primaryLabel}
           </button>
         </div>
       </div>

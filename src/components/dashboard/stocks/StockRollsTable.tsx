@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import type { StockRoll } from '@/lib/api';
+import { StockRollImportDropdown } from './StockRollImportDropdown';
 
 interface StockRollsTableProps {
   rolls: StockRoll[];
@@ -11,13 +12,23 @@ interface StockRollsTableProps {
   onDeleteRoll: (roll: StockRoll) => void;
   /** Verilirse çoklu seçim ve "Seçilenleri sil" gösterilir. */
   onDeleteRolls?: (rolls: StockRoll[]) => void | Promise<void>;
+  /** Excel/CSV/XML’den okunan ton değerleriyle ruloları sırayla oluşturur. */
+  onImportTonnages?: (tonnages: number[]) => Promise<void>;
 }
 
 /**
  * Rulo listesi tablosu. Her satır = 1 rulo (tonaj).
  * onDeleteRolls verilirse checkbox ile çoklu seçim ve toplu silme yapılabilir.
  */
-export function StockRollsTable({ rolls, loading, onAddRoll, onEditRoll, onDeleteRoll, onDeleteRolls }: StockRollsTableProps) {
+export function StockRollsTable({
+  rolls,
+  loading,
+  onAddRoll,
+  onEditRoll,
+  onDeleteRoll,
+  onDeleteRolls,
+  onImportTonnages,
+}: StockRollsTableProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const toggleOne = (id: string) => {
@@ -105,6 +116,7 @@ export function StockRollsTable({ rolls, loading, onAddRoll, onEditRoll, onDelet
               Seçilenleri sil ({selectedIds.size})
             </button>
           )}
+          {onImportTonnages && <StockRollImportDropdown onImportedTonnages={onImportTonnages} disabled={loading} />}
           <button
             type="button"
             onClick={onAddRoll}

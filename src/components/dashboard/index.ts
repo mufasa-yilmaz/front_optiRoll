@@ -4,6 +4,7 @@
 export { DashboardHeader } from './DashboardHeader';
 export { DashboardPageHeader } from './DashboardPageHeader';
 export { DashboardOverviewHeader } from './DashboardOverviewHeader';
+export { DashboardHomeView } from './DashboardHomeView';
 export { ResultsKpiGrid } from './ResultsKpiGrid';
 export { ResultsSummaryHeader } from './ResultsSummaryHeader';
 export { ResultsSummaryKpiCards } from './ResultsSummaryKpiCards';
@@ -31,5 +32,6 @@ export { CostParametersCard } from './CostParametersCard';
 export { OrdersSummaryCard } from './OrdersSummaryCard';
 export { OrdersSelectCard } from './OrdersSelectCard';
 export { OrdersSelectDropdown } from './OrdersSelectDropdown';
+export { OrdersSelectModal } from './OrdersSelectModal';
 export { DashboardFooterCta } from './DashboardFooterCta';
 export { ConfigurationSummaryCard } from './ConfigurationSummaryCard';

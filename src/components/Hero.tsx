@@ -37,12 +37,12 @@ export function Hero() {
               </p>
             </div>
             <div className="flex flex-wrap gap-4 justify-center lg:justify-start mt-2 items-center">
-              <button
-                type="button"
+              <Link
+                href="/teklif-talebi"
                 className="flex items-center justify-center gap-2 bg-primary hover:bg-[#1a2e4d] text-white h-12 px-6 rounded-lg text-base font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 whitespace-nowrap"
               >
-                Problemi İncele
-              </button>
+                Teklif al
+              </Link>
               <button
                 type="button"
                 className="flex items-center justify-center gap-2 bg-white dark:bg-surface-dark border border-gray-200 dark:border-gray-700 text-primary dark:text-white h-12 px-6 rounded-lg text-base font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors whitespace-nowrap"

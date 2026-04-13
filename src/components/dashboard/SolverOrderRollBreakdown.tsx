@@ -95,6 +95,13 @@ const formatTon = (n: number) =>
   n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 /**
+ * Aynı dilim için ton ile birlikte eşdeğer m² değerini kısa metin olarak döner.
+ */
+function formatTonWithM2(tonnage: number, m2: number): string {
+  return `${formatTon(tonnage)} t · ${fmt(m2)} m²`;
+}
+
+/**
  * Rulo kimliğine göre tekrarlı renk seçer.
  */
 function rollColor(rollId: number): string {
@@ -236,7 +243,127 @@ function aggregateLaneMetrics(slices: RollSlice[]): { ton: number; m2: number; p
  */
 function formatLaneRollList(laneSlices: RollSlice[]): string {
   if (laneSlices.length === 0) return '—';
-  return laneSlices.map((e) => `R${e.rollId} (${formatTon(e.tonnage)} t)`).join(' + ');
+  return laneSlices.map((e) => `R${e.rollId} (${formatTonWithM2(e.tonnage, e.m2)})`).join(' + ');
+}
+
+/**
+ * Çift yüzey tablosunda satırları operatör okumasına göre sıralar: önce üst bant (iç sıra), sonra alt bant.
+ * Model satırlarında (upper/lower kolonları) davranışı bozmamak için rollId sırası korunur.
+ */
+function sortSlicesForOperatorTable(
+  slices: RollSlice[],
+  partition: VisualSurfacePartition | null,
+  modelSplit: boolean,
+): RollSlice[] {
+  if (!partition || modelSplit) {
+    return [...slices].sort((a, b) => a.rollId - b.rollId);
+  }
+  const laneRank = (lane: SurfaceLane) => (lane === 'üst' ? 0 : 1);
+  return [...slices].sort((a, b) => {
+    const sa = laneSlotForSlice(a, slices, partition);
+    const sb = laneSlotForSlice(b, slices, partition);
+    if (!sa || !sb) return a.rollId - b.rollId;
+    const lr = laneRank(sa.lane) - laneRank(sb.lane);
+    if (lr !== 0) return lr;
+    const or = sa.ordinalInLane - sb.ordinalInLane;
+    if (or !== 0) return or;
+    return a.rollId - b.rollId;
+  });
+}
+
+/**
+ * Model çift yüzey tablosunda bir kesim satırı için üst/alt çubuktaki sıra etiketini üretir (aynı rulo iki yüzeyde olabilir).
+ */
+function sequenceLabelForModelRow(s: RollSlice, partition: VisualSurfacePartition): string {
+  const u = s.upperTonnage ?? 0;
+  const l = s.lowerTonnage ?? 0;
+  const iu = u > 1e-6 ? partition.upperSlices.findIndex((x) => x.rollId === s.rollId) : -1;
+  const il = l > 1e-6 ? partition.lowerSlices.findIndex((x) => x.rollId === s.rollId) : -1;
+  const parts: string[] = [];
+  if (iu >= 0) parts.push(`Üst · ${iu + 1}.`);
+  if (il >= 0) parts.push(`Alt · ${il + 1}.`);
+  return parts.length > 0 ? parts.join(' · ') : '—';
+}
+
+/**
+ * Sipariş kartında operatöre: hangi yüzeyde, soldan sağa hangi ruloların takılacağını gösteren kutu.
+ */
+function OperatorRollMountingGuide({
+  orderId,
+  upperSlices,
+  lowerSlices,
+  modelSplit,
+}: {
+  orderId: number;
+  upperSlices: RollSlice[];
+  lowerSlices: RollSlice[];
+  modelSplit: boolean;
+}) {
+  return (
+    <div className="rounded-lg border border-amber-200 bg-amber-50/90 px-3 py-2.5 shadow-sm">
+      <div className="flex items-start gap-2">
+        <span className="material-symbols-outlined text-amber-700 text-[20px] shrink-0 mt-0.5">precision_manufacturing</span>
+        <div className="min-w-0 flex-1 space-y-2">
+          <div>
+            <p className="text-xs font-bold text-amber-900">Operatör — rulo takma sırası (Sipariş #{String(orderId).padStart(2, '0')})</p>
+            <p className="text-[10px] text-amber-900/85 leading-snug mt-0.5">
+              Üst ve alt çubukta <strong>soldan sağa</strong> giden sıra, o yüzeyde hatta dizilecek ruloların takılma sırasıdır
+              (soldaki önce, sağdaki sonra). Üst satır <strong>üst yüzey</strong>, alt satır <strong>alt yüzey</strong> içindir.
+              {modelSplit ? (
+                <>
+                  {' '}
+                  Bu kayıtta sıra <strong>model üst/alt ton</strong> dağılımına göredir.
+                </>
+              ) : (
+                <>
+                  {' '}
+                  Bu kayıtta grafik satırları ton dengelemeli yedek yerleşimdir; yine de üst/alt ayrımı okuma içindir.
+                </>
+              )}
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-md bg-white/80 border border-amber-100 px-2.5 py-2">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-amber-800 mb-1.5">Üst yüzey — sıra</p>
+              {upperSlices.length === 0 ? (
+                <p className="text-[11px] text-gray-500">—</p>
+              ) : (
+                <ol className="list-decimal list-inside space-y-1 text-[11px] text-gray-800 font-medium leading-relaxed">
+                  {upperSlices.map((s) => (
+                    <li key={`op-u-${orderId}-${s.rollId}-${s.tonnage}`}>
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="inline-block w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: rollColor(s.rollId) }} />
+                        R{s.rollId}
+                        <span className="text-gray-600 font-normal">({formatTonWithM2(s.tonnage, s.m2)})</span>
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+            <div className="rounded-md bg-white/80 border border-amber-100 px-2.5 py-2">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-amber-800 mb-1.5">Alt yüzey — sıra</p>
+              {lowerSlices.length === 0 ? (
+                <p className="text-[11px] text-gray-500">—</p>
+              ) : (
+                <ol className="list-decimal list-inside space-y-1 text-[11px] text-gray-800 font-medium leading-relaxed">
+                  {lowerSlices.map((s) => (
+                    <li key={`op-l-${orderId}-${s.rollId}-${s.tonnage}`}>
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="inline-block w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: rollColor(s.rollId) }} />
+                        R{s.rollId}
+                        <span className="text-gray-600 font-normal">({formatTonWithM2(s.tonnage, s.m2)})</span>
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -268,7 +395,7 @@ function SurfaceLaneStackedRow({
           <span className="text-[9px] text-slate-500 leading-tight mt-0.5">{bandSubLabel}</span>
         ) : null}
       </div>
-      <div className="flex-1 min-w-0 h-10 rounded-lg overflow-hidden flex border border-gray-200 bg-gray-200/60">
+      <div className="flex-1 min-w-0 min-h-11 h-11 sm:h-12 rounded-lg overflow-hidden flex border border-gray-200 bg-gray-200/60">
         {laneSlices.length === 0 ? (
           <div className="w-full flex items-center justify-center text-[10px] text-gray-500">—</div>
         ) : (
@@ -280,7 +407,7 @@ function SurfaceLaneStackedRow({
             return (
               <div
                 key={s.rollId}
-                className="relative h-full flex flex-col items-center justify-center text-white text-[10px] sm:text-xs font-bold px-0.5 text-center leading-tight border-r border-white/30 last:border-r-0 shrink-0"
+                className="relative h-full flex flex-col items-center justify-center text-white text-[10px] sm:text-xs font-bold px-0.5 text-center leading-tight border-r border-white/30 last:border-r-0 shrink-0 py-0.5"
                 style={{
                   flex: `0 0 ${ww}%`,
                   minWidth: ww > 0 && ww < 12 ? '2.75rem' : undefined,
@@ -290,7 +417,8 @@ function SurfaceLaneStackedRow({
               >
                 {short ? <span className="text-[9px] opacity-95 leading-none">{short}</span> : null}
                 <span>R{s.rollId}</span>
-                <span className="opacity-90 font-semibold">{formatTon(s.tonnage)}t</span>
+                <span className="opacity-90 font-semibold leading-none">{formatTon(s.tonnage)}t</span>
+                <span className="opacity-85 text-[8px] sm:text-[9px] font-semibold leading-none">{fmt(s.m2)} m²</span>
               </div>
             );
           })
@@ -390,7 +518,7 @@ function buildChronologicalWorkflow(
     const lines = active.map(({ rollId, orderId }) => {
       const oid = orderId!;
       const sl = (byOrder.get(oid) ?? []).find((s) => s.rollId === rollId);
-      const ton = sl ? `${formatTon(sl.tonnage)} t (bu rulo)` : '';
+      const ton = sl ? `${formatTonWithM2(sl.tonnage, sl.m2)} (bu rulo)` : '';
       const q = surfaceWorkflowQualifier(rollId, oid, byOrder, emphasizeCoating, partitionByOrder);
       return `• Rulo #${rollId} — ${q}: Sipariş ${oid}${ton ? ` · ${ton}` : ''}`;
     });
@@ -548,7 +676,7 @@ export function SolverOrderRollBreakdown() {
         <p className="text-xs text-gray-500 mt-1">
           Her renkli dilim bir rulo katkısını gösterir.
           {emphasizeCoatingLanes
-            ? ' Yeni çözümlerde her satır bir yüzeyin model tonajını gösterir (satır toplamı = toplam talebin yarısı). Eski sonuçlarda satırlar yalnızca denge yedeğidir.'
+            ? ' Yeni çözümlerde her satır bir yüzeyin model tonajını gösterir (satır toplamı = toplam talebin yarısı). Eski sonuçlarda satırlar yalnızca denge yedeğidir. Çift yüzeyde çubukta soldan sağa sıra, o yüzeyde takılacak ruloların diziliş sırasıdır.'
             : ''}
         </p>
       </div>
@@ -560,6 +688,7 @@ export function SolverOrderRollBreakdown() {
           const totalM2 = slices.reduce((s, x) => s + x.m2, 0);
           const totalPanels = slices.reduce((s, x) => s + x.panelCount, 0);
           const perSurfaceTon = totalTon / 2;
+          const perSurfaceM2 = totalM2 / 2;
           const showDualSurfaceChart = emphasizeCoatingLanes && slices.length >= 2;
           const partition = showDualSurfaceChart
             ? (visualSurfacePartitionByOrder.get(orderId) ?? partitionSlicesForVisualSurfaces(slices))
@@ -590,10 +719,7 @@ export function SolverOrderRollBreakdown() {
                 </span>
                 <div className="text-xs text-gray-600 flex flex-wrap gap-3">
                   <span>
-                    Toplam: <strong>{fmt(totalTon)}</strong> ton
-                  </span>
-                  <span>
-                    m² (plan): <strong>{fmt(totalM2)}</strong>
+                    Toplam: <strong>{formatTonWithM2(totalTon, totalM2)}</strong> (plan)
                   </span>
                   <span>
                     <strong>{slices.length}</strong> rulo
@@ -604,7 +730,7 @@ export function SolverOrderRollBreakdown() {
               <div className="p-4 flex flex-col sm:flex-row sm:items-start gap-4">
                 <div className="w-28 shrink-0 text-sm font-medium text-gray-700">
                   Sipariş {orderId}
-                  <div className="text-[11px] font-normal text-gray-400 mt-0.5">{formatTon(totalTon)} t</div>
+                  <div className="text-[11px] font-normal text-gray-400 mt-0.5">{formatTonWithM2(totalTon, totalM2)}</div>
                 </div>
                 <div className="flex-1 flex flex-col gap-2 min-w-0">
                   {showDualSurfaceChart && partition ? (
@@ -629,13 +755,13 @@ export function SolverOrderRollBreakdown() {
                       />
                     </>
                   ) : (
-                    <div className="h-10 rounded-lg overflow-hidden flex bg-gray-100" style={{ minHeight: 40 }}>
+                    <div className="min-h-11 h-11 sm:h-12 rounded-lg overflow-hidden flex bg-gray-100">
                       {slices.map((s) => {
                         const w = totalTon > 0 ? (s.tonnage / totalTon) * 100 : 0;
                         return (
                           <div
                             key={`${orderId}-${s.rollId}`}
-                            className="relative h-full flex items-center justify-center text-white text-[10px] sm:text-xs font-bold border-r border-white/30 px-0.5"
+                            className="relative h-full flex flex-col items-center justify-center text-white text-[10px] sm:text-xs font-bold border-r border-white/30 px-0.5 py-0.5"
                             style={{
                               width: `${w}%`,
                               backgroundColor: rollColor(s.rollId),
@@ -643,10 +769,10 @@ export function SolverOrderRollBreakdown() {
                             }}
                             title={`Rulo ${s.rollId} · Sipariş ${orderId}: ${formatTon(s.tonnage)} ton · ${fmt(s.m2)} m²`}
                           >
-                            <span className="text-center leading-tight z-[1] px-0.5">
-                              R{s.rollId}
-                              <br />
-                              <span className="opacity-90">{formatTon(s.tonnage)}t</span>
+                            <span className="text-center leading-tight z-[1] px-0.5 flex flex-col items-center">
+                              <span>R{s.rollId}</span>
+                              <span className="opacity-90 leading-none">{formatTon(s.tonnage)}t</span>
+                              <span className="opacity-85 text-[8px] sm:text-[9px] leading-none">{fmt(s.m2)} m²</span>
                             </span>
                           </div>
                         );
@@ -656,6 +782,17 @@ export function SolverOrderRollBreakdown() {
                 </div>
               </div>
 
+              {showDualSurfaceChart && partition ? (
+                <div className="px-4 pb-3">
+                  <OperatorRollMountingGuide
+                    orderId={orderId}
+                    upperSlices={upperSlices}
+                    lowerSlices={lowerSlices}
+                    modelSplit={modelSplit}
+                  />
+                </div>
+              ) : null}
+
               {emphasizeCoatingLanes && (
                 <div className="px-4 pb-3 pt-1">
                   <div className="flex flex-wrap items-center gap-4 rounded-lg bg-indigo-50 border border-indigo-100 px-3 py-2">
@@ -664,10 +801,10 @@ export function SolverOrderRollBreakdown() {
                       <span className="text-[11px] font-semibold text-indigo-800">Çift yüzey</span>
                     </div>
                     <span className="text-[11px] text-indigo-700">
-                      Üst yüzey: <strong>{formatTon(perSurfaceTon)}</strong> t
+                      Üst yüzey: <strong>{formatTonWithM2(perSurfaceTon, perSurfaceM2)}</strong>
                     </span>
                     <span className="text-[11px] text-indigo-700">
-                      Alt yüzey: <strong>{formatTon(perSurfaceTon)}</strong> t
+                      Alt yüzey: <strong>{formatTonWithM2(perSurfaceTon, perSurfaceM2)}</strong>
                     </span>
                     <span className="text-[10px] text-indigo-500">
                       {modelSplit ? '(model ile zorunlu)' : '(hedef; eski grafik yedeğinde satırlar yaklaşık)'}
@@ -681,9 +818,9 @@ export function SolverOrderRollBreakdown() {
                   {modelSplit ? (
                     <>
                       <p className="text-[11px] text-gray-700 leading-relaxed">
-                        <strong>Model:</strong> Üst yüzey toplamı <strong>{formatTon(upperAgg.ton)}</strong> t · alt
-                        yüzey toplamı <strong>{formatTon(lowerAgg.ton)}</strong> t (her biri talebin yarısı{' '}
-                        <strong>{formatTon(perSurfaceTon)}</strong> t; yuvarlama ile küçük fark görünebilir).
+                        <strong>Model:</strong> Üst yüzey toplamı <strong>{formatTonWithM2(upperAgg.ton, upperAgg.m2)}</strong> · alt
+                        yüzey toplamı <strong>{formatTonWithM2(lowerAgg.ton, lowerAgg.m2)}</strong> (her yüzey hedefi talebin yarısı:{' '}
+                        <strong>{formatTonWithM2(perSurfaceTon, perSurfaceM2)}</strong>; yuvarlama ile küçük fark görünebilir).
                       </p>
                       <p className="text-[10px] text-slate-600 leading-snug">
                         Çözüm, her sipariş için üst ve alt yüzeyde ayrı ayrı tam D/2 tonaj kısıtı ile üretilir; yüzeyler
@@ -693,9 +830,9 @@ export function SolverOrderRollBreakdown() {
                   ) : (
                     <>
                       <p className="text-[11px] text-gray-700 leading-relaxed">
-                        Üst satır toplamı <strong>{formatTon(upperAgg.ton)}</strong> t · alt satır{' '}
-                        <strong>{formatTon(lowerAgg.ton)}</strong> t · yüzey başı hedef{' '}
-                        <strong>{formatTon(perSurfaceTon)}</strong> t · satır farkı{' '}
+                        Üst satır toplamı <strong>{formatTonWithM2(upperAgg.ton, upperAgg.m2)}</strong> · alt satır{' '}
+                        <strong>{formatTonWithM2(lowerAgg.ton, lowerAgg.m2)}</strong> · yüzey başı hedef{' '}
+                        <strong>{formatTonWithM2(perSurfaceTon, perSurfaceM2)}</strong> · satır farkı{' '}
                         <strong>{formatTon(tonBalanceDiff)}</strong> t
                       </p>
                       <p className="text-[10px] text-slate-600 leading-snug">
@@ -714,7 +851,12 @@ export function SolverOrderRollBreakdown() {
                       <tr className="text-[11px] uppercase tracking-wide text-gray-500 border-b border-gray-100">
                         {emphasizeCoatingLanes && partition ? (
                           <th className="px-3 py-2 font-semibold">
-                            {modelSplit ? 'Sıra (model)' : 'Görsel bant'}
+                            {modelSplit ? 'Yüzey (model)' : 'Yüzey / görsel bant'}
+                          </th>
+                        ) : null}
+                        {emphasizeCoatingLanes && partition ? (
+                          <th className="px-3 py-2 font-semibold whitespace-nowrap">
+                            {modelSplit ? 'Sıra (yüzeyde)' : 'Takma sırası'}
                           </th>
                         ) : null}
                         <th className="px-3 py-2 font-semibold">Rulo</th>
@@ -730,9 +872,9 @@ export function SolverOrderRollBreakdown() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
-                      {slices.map((s) => {
+                      {sortSlicesForOperatorTable(slices, partition && emphasizeCoatingLanes ? partition : null, modelSplit).map((s) => {
                         const slot =
-                          emphasizeCoatingLanes && partition && !modelSplit
+                          emphasizeCoatingLanes && partition
                             ? laneSlotForSlice(s, slices, partition)
                             : null;
                         const bandLabel = modelSplit
@@ -740,10 +882,23 @@ export function SolverOrderRollBreakdown() {
                           : slot
                             ? bandShortLabelFromSlot(slot)
                             : null;
+                        const sequenceLabel =
+                          emphasizeCoatingLanes && partition
+                            ? modelSplit
+                              ? sequenceLabelForModelRow(s, partition)
+                              : slot
+                                ? `${slot.lane === 'üst' ? 'Üst' : 'Alt'} · ${slot.ordinalInLane}. (soldan)`
+                                : '—'
+                            : null;
                         return (
                           <tr key={`${orderId}-${s.rollId}-tbl`} className="hover:bg-gray-50/80">
                             {emphasizeCoatingLanes && partition ? (
                               <td className="px-3 py-2.5 text-gray-600">{bandLabel ?? '—'}</td>
+                            ) : null}
+                            {emphasizeCoatingLanes && partition ? (
+                              <td className="px-3 py-2.5 text-gray-700 text-xs whitespace-nowrap">
+                                {sequenceLabel ?? '—'}
+                              </td>
                             ) : null}
                             <td className="px-3 py-2.5">
                               <span className="inline-flex items-center gap-2 font-semibold text-navy-custom">
@@ -773,7 +928,7 @@ export function SolverOrderRollBreakdown() {
                       <tr className="bg-slate-50 font-semibold text-xs">
                         <td
                           className="px-3 py-2"
-                          colSpan={emphasizeCoatingLanes && partition ? 2 : 1}
+                          colSpan={emphasizeCoatingLanes && partition ? 3 : 1}
                         >
                           Toplam
                         </td>

@@ -2,6 +2,7 @@
 export { OrdersManagementHeader } from './OrdersManagementHeader';
 export { OrdersFiltersBar } from './OrdersFiltersBar';
 export { ProjectsTable } from './ProjectsTable';
+export { OrderImportDropdown } from './OrderImportDropdown';
 export { OrdersTable } from './OrdersTable';
 export { OrderCreateModal } from './OrderCreateModal';
 export { OrderCreateFormCard } from './OrderCreateFormCard';

@@ -11,6 +11,7 @@ import {
   OrdersStatsCards,
 } from '@/components/dashboard/orders';
 import type { OrderFormData } from '@/components/dashboard/orders';
+import type { OrderImportRow } from '@/lib/orderImport';
 import { DEFAULT_ORDER_TABLE_MATERIAL, sumOrdersEstimatedDemandTon } from '@/components/dashboard/orders/helpers';
 
 const emptyForm: OrderFormData = {
@@ -117,6 +118,38 @@ export default function OrdersPage() {
     }
   }
 
+  /**
+   * İçe aktarılan sipariş satırlarını sırayla kaydeder (varsayılan durum: beklemede).
+   */
+  async function handleImportOrders(rows: OrderImportRow[]) {
+    let added = 0;
+    try {
+      for (const r of rows) {
+        await saveOrder({
+          order_id: r.order_id,
+          m2: r.m2,
+          panel_width: r.panel_width,
+          panel_length: r.panel_length,
+          il: r.il,
+          bitis_tarihi: r.bitis_tarihi,
+          aciklama: r.aciklama,
+          status: 'Pending',
+        });
+        added += 1;
+      }
+      toast.success(`${added} sipariş içe aktarıldı.`);
+      await loadOrders();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Sipariş kaydedilemedi';
+      if (added > 0) {
+        toast.warning(`${added} sipariş eklendi; sonrasında hata: ${msg}`);
+        await loadOrders();
+      } else {
+        toast.error(msg);
+      }
+    }
+  }
+
   /** Seçili siparişleri toplu siler. */
   async function handleDeleteOrders(selectedOrders: Order[]) {
     if (selectedOrders.length === 0) return;
@@ -180,6 +213,7 @@ export default function OrdersPage() {
             onStatusChange={handleStatusChange}
             onAddOrder={openCreateModal}
             onDeleteOrders={handleDeleteOrders}
+            onImportOrders={handleImportOrders}
           />
         </div>
 

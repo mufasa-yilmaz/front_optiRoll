@@ -1,7 +1,8 @@
 'use client';
 
-import { useRef, useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Order } from '@/lib/api';
+import { OrdersSelectModal } from './OrdersSelectModal';
 
 export interface OrdersSelectDropdownProps {
   /** Orders tablosundan gelen Pending siparişler */
@@ -12,19 +13,20 @@ export interface OrdersSelectDropdownProps {
   onSelectionChange: (selectedIds: Set<string>) => void;
   /** Hata durumu (buton etrafında vurgu) */
   hasError?: boolean;
-  /** Dropdown buton metni */
+  /** Tetikleyici buton metni */
   label?: string;
-}
-
-/** UUID veya uzun id'yi tabloda kısa göstermek için kısaltır; sayfa genişlemesin diye. */
-function shortId(id: string, orderId?: string | null): string {
-  if (orderId && orderId.trim()) return orderId;
-  return id.length > 12 ? `${id.slice(0, 8)}…` : id;
+  /** true ise modalda seçim tabloya eklenene kadar bekler; onAppendOrders ile birleştirir */
+  appendMode?: boolean;
+  /** appendMode: tabloda zaten olan sipariş id'leri (tekrar eklemeyi engellemek için) */
+  existingOrderIds?: Set<string>;
+  /** appendMode: "Seçilenleri tabloya ekle" tıklanınca çağrılır */
+  onAppendOrders?: (rows: { id: string; m2: number; panelWidth: number; panelLength?: number }[]) => void;
 }
 
 /**
- * Sipariş seçim dropdown'ı. Sağ üstte buton; tıklanınca açılan panelde checkbox listesi.
- * Tabloda tam ID göstermez, kısa etiket kullanır.
+ * Sipariş seçimi: buton modal açar; detaylı tablo, filtre ve sıralama ile çoklu seçim.
+ * appendMode kapalıyken seçim doğrudan üst bileşenle senkron (otomatik konfigürasyon).
+ * appendMode açıkken taslak seçim modalda kalır; onayda satırlar onAppendOrders ile eklenir.
  */
 export function OrdersSelectDropdown({
   orders,
@@ -32,105 +34,83 @@ export function OrdersSelectDropdown({
   onSelectionChange,
   hasError,
   label = 'Siparişlerden seç',
+  appendMode = false,
+  existingOrderIds,
+  onAppendOrders,
 }: OrdersSelectDropdownProps) {
-  const [open, setOpen] = useState(false);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  /** appendMode için modal içi geçici seçim (üst state’i kapatana kadar değiştirmez). */
+  const [draftIds, setDraftIds] = useState<Set<string>>(new Set());
 
-  /** Dışarı tıklanınca dropdown'ı kapatır. */
+  /** Modal açılırken append modunda taslağı sıfırlar. */
   useEffect(() => {
-    if (!open) return;
-    function handleClickOutside(e: MouseEvent) {
-      const el = e.target as Node;
-      if (panelRef.current?.contains(el) || buttonRef.current?.contains(el)) return;
-      setOpen(false);
+    if (modalOpen && appendMode) {
+      setDraftIds(new Set());
     }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [open]);
-
-  function toggle(id: string) {
-    const next = new Set(selectedIds);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    onSelectionChange(next);
-  }
-
-  function toggleAll() {
-    if (selectedIds.size === orders.length) {
-      onSelectionChange(new Set());
-    } else {
-      onSelectionChange(new Set(orders.map((o) => o.id)));
-    }
-  }
+  }, [modalOpen, appendMode]);
 
   if (orders.length === 0) {
     return (
-      <span className="text-xs text-slate-500">
+      <span className="text-xs text-slate-500 dark:text-slate-400">
         Bekleyen sipariş yok. Önce sipariş sayfasından sipariş ekleyin.
       </span>
     );
   }
 
+  const modalSelected = appendMode ? draftIds : selectedIds;
+  const modalOnChange = appendMode ? setDraftIds : onSelectionChange;
+  /** Senkron modda seçili/bekleyen oranı; append modda sadece bekleyen kayıt sayısı (taslak modalda). */
+  const countLabel = appendMode ? `${orders.length} kayıt` : `${selectedIds.size}/${orders.length}`;
+
+  /**
+   * Append modunda: seçilen siparişleri (tabloda olmayanlar) üst bileşene iletir ve modalı kapatır.
+   */
+  function handleAppendConfirm() {
+    if (!onAppendOrders || !appendMode) return;
+    const rows = orders
+      .filter((o) => draftIds.has(o.id))
+      .filter((o) => !existingOrderIds?.has(o.id))
+      .map((o) => ({
+        id: o.id,
+        m2: Number(o.m2),
+        panelWidth: Number(o.panel_width),
+        panelLength: o.panel_length != null ? Number(o.panel_length) : undefined,
+      }));
+    onAppendOrders(rows);
+    setModalOpen(false);
+    setDraftIds(new Set());
+  }
+
   return (
     <div className="relative">
       <button
-        ref={buttonRef}
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setModalOpen(true)}
         className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition ${
-          hasError ? 'border-red-300 bg-red-50 text-red-700' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+          hasError
+            ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-200'
+            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700/80'
         }`}
-        aria-expanded={open}
-        aria-haspopup="listbox"
+        aria-expanded={modalOpen}
+        aria-haspopup="dialog"
       >
-        <span className="material-symbols-outlined text-lg">list</span>
+        <span className="material-symbols-outlined text-lg">table_rows</span>
         {label}
-        <span className="text-slate-500">({selectedIds.size}/{orders.length})</span>
-        <span className={`material-symbols-outlined text-lg transition ${open ? 'rotate-180' : ''}`}>expand_more</span>
+        <span className="text-slate-500 dark:text-slate-400">({countLabel})</span>
       </button>
 
-      {open && (
-        <div
-          ref={panelRef}
-          role="listbox"
-          className="absolute right-0 top-full z-50 mt-1 min-w-[280px] max-h-72 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
-        >
-          <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-3 py-2">
-            <span className="text-xs font-medium text-slate-600">Sipariş seçin</span>
-            <button
-              type="button"
-              onClick={toggleAll}
-              className="text-xs font-medium text-primary hover:underline"
-            >
-              {selectedIds.size === orders.length ? 'Tümünü kaldır' : 'Tümünü seç'}
-            </button>
-          </div>
-          <div className="max-h-56 overflow-y-auto p-1">
-            {orders.map((order) => (
-              <label
-                key={order.id}
-                className={`flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 hover:bg-slate-50 ${
-                  selectedIds.has(order.id) ? 'bg-primary/5' : ''
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedIds.has(order.id)}
-                  onChange={() => toggle(order.id)}
-                  className="rounded border-slate-300 text-primary focus:ring-primary/20"
-                />
-                <span className="min-w-0 flex-1 truncate font-medium text-slate-800" title={order.id}>
-                  {shortId(order.id, order.order_id)}
-                </span>
-                <span className="shrink-0 text-xs text-slate-500">
-                  {Number(order.m2).toFixed(0)} m² · {Number(order.panel_width).toFixed(2)} m
-                </span>
-              </label>
-            ))}
-          </div>
-        </div>
-      )}
+      <OrdersSelectModal
+        isOpen={modalOpen}
+        onClose={() => {
+          setModalOpen(false);
+          if (appendMode) setDraftIds(new Set());
+        }}
+        orders={orders}
+        selectedIds={modalSelected}
+        onSelectionChange={modalOnChange}
+        footerMode={appendMode ? 'append' : 'closeOnly'}
+        onAppendConfirm={appendMode ? handleAppendConfirm : undefined}
+      />
     </div>
   );
 }

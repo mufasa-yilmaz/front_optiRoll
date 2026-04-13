@@ -9,6 +9,7 @@ import {
   RollSettingsCard,
   CostParametersCard,
   OrdersSummaryCard,
+  OrdersSelectDropdown,
   DashboardFooterCta,
   ConfigurationSummaryCard,
 } from '@/components';
@@ -17,8 +18,10 @@ import {
   optimize,
   getConfigurationById,
   getRun,
+  getOrders,
   ROLL_ORDER_UNLIMITED,
   type OptimizeRequest,
+  type Order,
 } from '@/lib/api';
 import { useOptimization } from '@/contexts/OptimizationContext';
 
@@ -86,6 +89,26 @@ export function ManualConfigurationForm() {
   const [configurationId, setConfigurationId] = useState<string | null>(null);
   const [runDescription, setRunDescription] = useState('');
   const [isLoadingConfiguration, setIsLoadingConfiguration] = useState(false);
+  /** Bekleyen siparişler — modalda seçilip tabloya eklenebilir */
+  const [availableOrders, setAvailableOrders] = useState<Order[]>([]);
+
+  /**
+   * Dashboard sipariş listesindeki Pending kayıtları yükler (veritabanından ekle modalı için).
+   */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await getOrders('Pending');
+        if (!cancelled) setAvailableOrders(res.orders || []);
+      } catch {
+        if (!cancelled) setAvailableOrders([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   /**
    * Formdan geçerli sipariş satırlarını üretir (manuel sayfa).
@@ -331,13 +354,13 @@ export function ManualConfigurationForm() {
 
   const totalDemandM2 = orders.reduce((sum, o) => sum + (o.m2 || 0), 0);
 
-  /** Üst adım çubuğu: Açıklama → Senaryo → Maliyet → Stok → Sipariş. Tıklanınca ilgili bölüme kayar. */
+  /** Üst adım çubuğu: Açıklama → Siparişler → Senaryo → Maliyet → Rulo. Tıklanınca ilgili bölüme kayar. */
   const CONFIG_STEPS = [
     { id: 'description', label: 'Açıklama', icon: 'notes' as const },
+    { id: 'orders', label: 'Siparişler', icon: 'list_alt' as const },
     { id: 'scenario', label: 'Senaryo Seçimi', icon: 'tune' as const },
     { id: 'cost', label: 'Maliyet Parametreleri', icon: 'payments' as const },
     { id: 'rolls', label: 'Rulo Stoğu', icon: 'inventory_2' as const },
-    { id: 'orders', label: 'Siparişler', icon: 'list_alt' as const },
   ] as const;
 
   return (
@@ -361,7 +384,7 @@ export function ManualConfigurationForm() {
           Manuel Analiz &amp; Test
         </h1>
         <p className="mt-2 text-slate-500 dark:text-slate-400">
-          Malzeme özellikleri, senaryo seçimi, maliyet parametreleri, stok ve siparişleri sırayla yapılandırın.
+          Önce rapor adı ve siparişleri, ardından senaryo, maliyet ve rulo stoğunu yapılandırın.
         </p>
       </div>
 
@@ -409,10 +432,10 @@ export function ManualConfigurationForm() {
             className="scroll-mt-[5.5rem]"
             aria-labelledby="heading-description"
           >
-            <h2 id="heading-description" className="sr-only">Açıklama</h2>
+            <h2 id="heading-description" className="sr-only">Rapor Adı</h2>
             <div className="rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden bg-white dark:bg-slate-900">
               <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/50">
-                <h3 className="text-lg font-bold text-primary">Açıklama</h3>
+                <h3 className="text-lg font-bold text-primary">Rapor Adı</h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   Bu çalıştırma sonuçlar tablosunda bu açıklama ile listelenecektir. (Zorunlu)
                 </p>
@@ -436,14 +459,48 @@ export function ManualConfigurationForm() {
           </section>
 
           <section
+            id="section-orders"
+            className="scroll-mt-[5.5rem]"
+            aria-labelledby="heading-orders"
+          >
+            <h2 id="heading-orders" className="sr-only">Siparişler</h2>
+            <div className="rounded-xl border border-slate-200 shadow-sm overflow-hidden bg-white dark:border-slate-700 dark:bg-slate-900">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-primary/5 bg-slate-50/70 px-6 py-4 dark:bg-slate-800/50">
+                <div>
+                  <h2 className="text-lg font-bold text-primary">Siparişler</h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Satırları düzenleyin veya bekleyen siparişleri detaylı listeden seçip tabloya ekleyin.
+                  </p>
+                </div>
+                <OrdersSelectDropdown
+                  orders={availableOrders}
+                  selectedIds={new Set()}
+                  onSelectionChange={() => {}}
+                  appendMode
+                  existingOrderIds={new Set(orders.map((o) => o.id))}
+                  onAppendOrders={(rows) => {
+                    setOrders((prev) => [...prev, ...rows]);
+                  }}
+                  label="Veritabanından ekle"
+                />
+              </div>
+              <OrdersSummaryCard
+                orders={orders}
+                onOrdersChange={setOrders}
+                thickness={thickness}
+                density={density}
+                hideHeader
+              />
+            </div>
+          </section>
+
+          <section
             id="section-scenario"
             className="scroll-mt-[5.5rem]"
             aria-labelledby="heading-scenario"
           >
             <h2 id="heading-scenario" className="sr-only">Senaryo Seçimi</h2>
             <ScenarioSelectionCard
-              safetyStock={safetyStock}
-              onSafetyStockChange={setSafetyStock}
               maxOrdersPerRoll={maxOrdersPerRoll}
               onMaxOrdersPerRollChange={setMaxOrdersPerRoll}
               maxRollsPerOrder={maxRollsPerOrder}
@@ -481,20 +538,6 @@ export function ManualConfigurationForm() {
               interleavingPenaltyCost={interleavingPenaltyCost}
               onInterleavingPenaltyCostChange={setInterleavingPenaltyCost}
               estimatedNeedTon={estimatedNeedTon}
-            />
-          </section>
-
-          <section
-            id="section-orders"
-            className="scroll-mt-[5.5rem]"
-            aria-labelledby="heading-orders"
-          >
-            <h2 id="heading-orders" className="sr-only">Siparişler</h2>
-            <OrdersSummaryCard
-              orders={orders}
-              onOrdersChange={setOrders}
-              thickness={thickness}
-              density={density}
             />
           </section>
         </div>

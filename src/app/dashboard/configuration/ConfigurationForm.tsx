@@ -31,6 +31,10 @@ const INITIAL_ORDERS: { id: string; m2: number; panelWidth: number; panelLength?
 /** Tahmini ihtiyaç ve backend ile aynı: sipariş m² tek yüzey, talep çarpanı 2. */
 const OPTIMIZATION_SURFACE_FACTOR = 2;
 
+/** Malzeme alanı kapalıyken tahmini ton ve API `material` ile aynı varsayılanlar. */
+const DEFAULT_MATERIAL_THICKNESS_MM = 0.75;
+const DEFAULT_MATERIAL_DENSITY_KG_M3 = 7850;
+
 /** Yükleme sırasında gösterilen aşamalı durum mesajları. */
 const LOADING_STEPS = ['Analiz ediliyor...', 'Hesaplanıyor...', 'Sonuçlar getiriliyor...'] as const;
 
@@ -87,7 +91,17 @@ export function ConfigurationForm() {
   const [interleavingPenaltyCost, setInterleavingPenaltyCost] = useState<number>(60);
 
   const densityGcm3 = density ? density / 1000 : 0;
-  const estimatedNeedTon = estimateNeedTon(orders, thickness, density, safetyStock, OPTIMIZATION_SURFACE_FACTOR);
+  const thicknessForEstimateMm =
+    thickness != null && thickness > 0 ? thickness : DEFAULT_MATERIAL_THICKNESS_MM;
+  const densityKgM3ForEstimate =
+    density != null && density > 0 ? density : DEFAULT_MATERIAL_DENSITY_KG_M3;
+  const estimatedNeedTon = estimateNeedTon(
+    orders,
+    thicknessForEstimateMm,
+    densityKgM3ForEstimate,
+    safetyStock,
+    OPTIMIZATION_SURFACE_FACTOR,
+  );
   const [configurationId, setConfigurationId] = useState<string | null>(null);
   const [isLoadingConfiguration, setIsLoadingConfiguration] = useState(false);
   const [availableOrders, setAvailableOrders] = useState<Order[]>([]);
@@ -114,7 +128,6 @@ export function ConfigurationForm() {
     | 'description'
     | 'thickness'
     | 'density'
-    | 'safetyStock'
     | 'maxOrdersPerRoll'
     | 'maxRollsPerOrder'
     | 'fireCost'
@@ -158,7 +171,6 @@ export function ConfigurationForm() {
 
     if (!runDescription?.trim()) missing.push('description');
     // Malzeme kalınlığı ve yoğunluk opsiyonel (varsayılanlar API'de kullanılır).
-    if (safetyStock == null || Number.isNaN(safetyStock)) missing.push('safetyStock');
     const maxOrdersValid = maxOrdersPerRoll != null && (maxOrdersPerRoll === ROLL_ORDER_UNLIMITED || maxOrdersPerRoll > 0);
     if (!maxOrdersValid) missing.push('maxOrdersPerRoll');
     const maxRollsValid = maxRollsPerOrder != null && (maxRollsPerOrder === ROLL_ORDER_UNLIMITED || maxRollsPerOrder > 0);
@@ -174,7 +186,6 @@ export function ConfigurationForm() {
     if (rolls.length === 0 || rolls.some((r) => r <= 0)) missing.push('rolls');
     return missing;
   }, [
-    safetyStock,
     maxOrdersPerRoll,
     maxRollsPerOrder,
     fireCost,
@@ -194,8 +205,9 @@ export function ConfigurationForm() {
     (validOrders: { id: string; m2: number; panelWidth: number; panelLength?: number }[]): OptimizeRequest => {
       return {
         material: {
-          thickness: (thickness != null && thickness > 0) ? thickness : 0.75,
-          density: (densityGcm3 && densityGcm3 > 0) ? densityGcm3 : 7.85,
+          thickness: (thickness != null && thickness > 0) ? thickness : DEFAULT_MATERIAL_THICKNESS_MM,
+          density:
+            densityGcm3 && densityGcm3 > 0 ? densityGcm3 : DEFAULT_MATERIAL_DENSITY_KG_M3 / 1000,
         },
         safetyStock: safetyStock ?? 0,
         maxInterleavingOrders: Math.max(0, maxInterleavingOrders),
@@ -343,7 +355,6 @@ export function ConfigurationForm() {
     description: 'description',
     thickness: 'material',
     density: 'material',
-    safetyStock: 'scenario',
     maxOrdersPerRoll: 'scenario',
     maxRollsPerOrder: 'scenario',
     fireCost: 'cost',
@@ -369,7 +380,6 @@ export function ConfigurationForm() {
         description: 'Açıklama alanı zorunludur. Sonuçlar tablosunda görünecek kısa bir açıklama yazın.',
         thickness: 'Malzeme kalınlığını girmeyi unuttunuz.',
         density: 'Malzeme yoğunluğunu girmeyi unuttunuz.',
-        safetyStock: 'Güvenlik stoğu yüzdesini kontrol edin.',
         maxOrdersPerRoll: 'Bir rulodaki maksimum sipariş sayısını girmelisiniz.',
         maxRollsPerOrder: 'Bir sipariş için maksimum rulo sayısını girmelisiniz.',
         fireCost: 'Fire maliyeti (cf) alanını doldurun.',
@@ -426,13 +436,13 @@ export function ConfigurationForm() {
 
   const totalDemandM2 = orders.reduce((sum, o) => sum + (o.m2 || 0), 0);
 
-  /** Üst adım çubuğu: Açıklama → Senaryo → Maliyet → Stok → Sipariş. Tıklanınca ilgili bölüme kayar. */
+  /** Üst adım çubuğu: Rapor adı → Siparişler → Senaryo → Maliyet → Rulo. Tıklanınca ilgili bölüme kayar. */
   const CONFIG_STEPS = [
-    { id: 'description', label: 'Açıklama', icon: 'notes' as const },
+    { id: 'description', label: 'Rapor Adı', icon: 'notes' as const },
+    { id: 'orders', label: 'Siparişler', icon: 'list_alt' as const },
     { id: 'scenario', label: 'Senaryo Seçimi', icon: 'tune' as const },
     { id: 'cost', label: 'Maliyet Parametreleri', icon: 'payments' as const },
     { id: 'rolls', label: 'Rulo Stoğu', icon: 'inventory_2' as const },
-    { id: 'orders', label: 'Siparişler', icon: 'list_alt' as const },
   ] as const;
 
   return (
@@ -456,7 +466,7 @@ export function ConfigurationForm() {
           Yeni Optimizasyon Senaryosu
         </h1>
         <p className="mt-2 text-slate-500 dark:text-slate-400 text-sm">
-          Malzeme özellikleri, senaryo seçimi, maliyet parametreleri, stok ve siparişleri sırayla yapılandırın.
+          Önce rapor adı ve siparişleri, ardından senaryo, maliyet ve rulo stoğunu yapılandırın.
         </p>
       </div>
 
@@ -507,7 +517,7 @@ export function ConfigurationForm() {
             className="scroll-mt-[5.5rem]"
             aria-labelledby="heading-description"
           >
-            <h2 id="heading-description" className="sr-only">Açıklama</h2>
+            <h2 id="heading-description" className="sr-only">Rapor Adı</h2>
             <div
               className={`rounded-xl border shadow-sm overflow-hidden ${
                 missingFields.includes('description') ? 'border-red-300' : 'border-slate-200 bg-white dark:bg-slate-900'
@@ -515,7 +525,7 @@ export function ConfigurationForm() {
               key={missingFields.includes('description') ? `description-${validationBlinkKey}` : 'description'}
             >
               <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/50">
-                <h3 className="text-lg font-bold text-primary">Açıklama</h3>
+                <h3 className="text-lg font-bold text-primary">Rapor Adı</h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   Bu çalıştırma sonuçlar tablosunda bu açıklama ile listelenecektir. (Zorunlu)
                 </p>
@@ -540,14 +550,53 @@ export function ConfigurationForm() {
           </section>
 
           <section
+            id="section-orders"
+            className="scroll-mt-[5.5rem]"
+            aria-labelledby="heading-orders"
+          >
+            <h2 id="heading-orders" className="sr-only">Siparişler</h2>
+            <div
+              className={`rounded-xl border shadow-sm overflow-hidden ${
+                missingFields.includes('orders') ? 'border-red-300' : 'border-slate-200 bg-white'
+              }`}
+              key={missingFields.includes('orders') ? `orders-section-${validationBlinkKey}` : 'orders-section'}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-primary/5 bg-slate-50/70 px-6 py-4">
+                <div>
+                  <h2 className="text-lg font-bold text-primary">Siparişler</h2>
+                  <p className="text-xs text-slate-500">
+                    {orders.length > 0
+                      ? `${orders.length} sipariş seçili`
+                      : 'Optimizasyona dahil edilecek siparişleri sağdaki menüden seçin.'}
+                  </p>
+                </div>
+                <OrdersSelectDropdown
+                  orders={availableOrders}
+                  selectedIds={selectedOrderIds}
+                  onSelectionChange={setSelectedOrderIds}
+                  hasError={missingFields.includes('orders')}
+                  label="Siparişlerden seç"
+                />
+              </div>
+              <OrdersSummaryCard
+                orders={orders}
+                thickness={thickness}
+                density={density}
+                hasOrdersError={missingFields.includes('orders')}
+                blinkValidationKey={validationBlinkKey}
+                showManualAdd={false}
+                hideHeader
+              />
+            </div>
+          </section>
+
+          <section
             id="section-scenario"
             className="scroll-mt-[5.5rem]"
             aria-labelledby="heading-scenario"
           >
             <h2 id="heading-scenario" className="sr-only">Senaryo Seçimi</h2>
             <ScenarioSelectionCard
-              safetyStock={safetyStock}
-              onSafetyStockChange={setSafetyStock}
               maxOrdersPerRoll={maxOrdersPerRoll}
               onMaxOrdersPerRollChange={setMaxOrdersPerRoll}
               maxRollsPerOrder={maxRollsPerOrder}
@@ -603,47 +652,6 @@ export function ConfigurationForm() {
               blinkValidationKey={validationBlinkKey}
               showManualAdd={false}
             />
-          </section>
-
-          <section
-            id="section-orders"
-            className="scroll-mt-[5.5rem]"
-            aria-labelledby="heading-orders"
-          >
-            <h2 id="heading-orders" className="sr-only">Siparişler</h2>
-            <div
-              className={`rounded-xl border shadow-sm overflow-hidden ${
-                missingFields.includes('orders') ? 'border-red-300' : 'border-slate-200 bg-white'
-              }`}
-              key={missingFields.includes('orders') ? `orders-section-${validationBlinkKey}` : 'orders-section'}
-            >
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-primary/5 bg-slate-50/70 px-6 py-4">
-                <div>
-                  <h2 className="text-lg font-bold text-primary">Siparişler</h2>
-                  <p className="text-xs text-slate-500">
-                    {orders.length > 0
-                      ? `${orders.length} sipariş seçili`
-                      : 'Optimizasyona dahil edilecek siparişleri sağdaki menüden seçin.'}
-                  </p>
-                </div>
-                <OrdersSelectDropdown
-                  orders={availableOrders}
-                  selectedIds={selectedOrderIds}
-                  onSelectionChange={setSelectedOrderIds}
-                  hasError={missingFields.includes('orders')}
-                  label="Siparişlerden seç"
-                />
-              </div>
-              <OrdersSummaryCard
-                orders={orders}
-                thickness={thickness}
-                density={density}
-                hasOrdersError={missingFields.includes('orders')}
-                blinkValidationKey={validationBlinkKey}
-                showManualAdd={false}
-                hideHeader
-              />
-            </div>
           </section>
         </div>
 

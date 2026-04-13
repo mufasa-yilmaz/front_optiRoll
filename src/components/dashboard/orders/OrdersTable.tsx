@@ -9,13 +9,15 @@ import {
   getStatusLabel,
   getStatusTextClass,
 } from './helpers';
+import { OrderImportDropdown } from './OrderImportDropdown';
+import type { OrderImportRow } from '@/lib/orderImport';
 
 /** Tabloda seçilebilir sipariş durumları */
 const ORDER_STATUSES = ['Pending', 'Optimized', 'In Production'] as const;
 type OrderStatusOption = (typeof ORDER_STATUSES)[number];
 
 /**
- * Sipariş tablosu / kartlarında bitiş tarihini kısa metin olarak döndürür.
+ * Sipariş tablosu / kartlarında teslim tarihini kısa metin olarak döndürür.
  */
 function formatOrderTableDate(value?: string | null): string {
   if (!value) return '-';
@@ -125,13 +127,15 @@ interface OrdersTableProps {
   onAddOrder?: () => void;
   /** Verilirse çoklu seçim ve "Seçilenleri sil" gösterilir. */
   onDeleteOrders?: (orders: Order[]) => void | Promise<void>;
+  /** Excel/CSV/XML’den okunan siparişleri sırayla kaydeder. */
+  onImportOrders?: (rows: OrderImportRow[]) => Promise<void>;
   /** Tahmini ton sütunu için malzeme; verilmezse galvaniz 0,75 mm varsayılır. */
   tonMaterial?: { thicknessMm: number; densityKgM3: number };
 }
 
 /**
  * Sipariş listesi: mobilde kart (yatay kaydırma yok), md ve üzerinde sabit genişlikli tablo.
- * Dar ekranda kısaltılmış başlıklar; Konum xl+, Bitiş lg+ breakpoint’lerinde görünür.
+ * Dar ekranda kısaltılmış başlıklar; Konum xl+, Teslim lg+ breakpoint’lerinde görünür.
  */
 export function OrdersTable({
   orders,
@@ -141,6 +145,7 @@ export function OrdersTable({
   onStatusChange,
   onAddOrder,
   onDeleteOrders,
+  onImportOrders,
   tonMaterial = DEFAULT_ORDER_TABLE_MATERIAL,
 }: OrdersTableProps) {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -198,15 +203,16 @@ export function OrdersTable({
               Seçilenleri sil ({selectedIds.size})
             </button>
           )}
+          {onImportOrders && <OrderImportDropdown onImportedOrders={onImportOrders} disabled={loading} />}
           {onAddOrder && (
-          <button
-            type="button"
-            onClick={onAddOrder}
-            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary/90"
-          >
-            <span className="material-symbols-outlined text-lg">add_circle</span>
-            Yeni Sipariş Ekle
-          </button>
+            <button
+              type="button"
+              onClick={onAddOrder}
+              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary/90"
+            >
+              <span className="material-symbols-outlined text-lg">add_circle</span>
+              Yeni Sipariş Ekle
+            </button>
           )}
         </div>
       </div>
@@ -280,7 +286,7 @@ export function OrdersTable({
                 <span className="hidden xl:inline">Kesim</span>
               </th>
               <th className="hidden border-b border-primary/5 px-2 py-2 xl:table-cell">Konum</th>
-              <th className="hidden border-b border-primary/5 px-2 py-2 lg:table-cell">Bitiş</th>
+              <th className="hidden border-b border-primary/5 px-2 py-2 lg:table-cell">Teslim Tarihi</th>
               <th className="border-b border-primary/5 px-1 py-2 lg:px-2">Durum</th>
               <th className="border-b border-primary/5 px-1 py-2 text-center lg:px-2">İşlem</th>
             </tr>
