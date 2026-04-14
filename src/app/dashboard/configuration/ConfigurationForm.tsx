@@ -21,6 +21,7 @@ import {
   getConfigurationById,
   ROLL_ORDER_UNLIMITED,
   type Order,
+  type SyncLevel,
   type OptimizeRequest,
 } from '@/lib/api';
 import { useOptimization } from '@/contexts/OptimizationContext';
@@ -89,6 +90,7 @@ export function ConfigurationForm() {
   const [orders, setOrders] = useState<{ id: string; m2: number; panelWidth: number; panelLength?: number }[]>(INITIAL_ORDERS);
   const [maxInterleavingOrders, setMaxInterleavingOrders] = useState<number>(2);
   const [interleavingPenaltyCost, setInterleavingPenaltyCost] = useState<number>(60);
+  const [selectedSyncLevels, setSelectedSyncLevels] = useState<SyncLevel[]>([]);
 
   const densityGcm3 = density ? density / 1000 : 0;
   const thicknessForEstimateMm =
@@ -134,7 +136,8 @@ export function ConfigurationForm() {
     | 'setupCost'
     | 'stockCost'
     | 'orders'
-    | 'rolls';
+    | 'rolls'
+    | 'syncSelection';
 
   const [missingFields, setMissingFields] = useState<MissingFieldKey[]>([]);
   const [validationBlinkKey, setValidationBlinkKey] = useState(0);
@@ -181,6 +184,7 @@ export function ConfigurationForm() {
     if (!fireCost || fireCost <= 0) missing.push('fireCost');
     if (!setupCost || setupCost <= 0) missing.push('setupCost');
     if (stockCost == null) missing.push('stockCost');
+    if (selectedSyncLevels.length === 0) missing.push('syncSelection');
     const validOrders = getValidOrders();
     if (validOrders.length === 0) missing.push('orders');
     if (rolls.length === 0 || rolls.some((r) => r <= 0)) missing.push('rolls');
@@ -195,6 +199,7 @@ export function ConfigurationForm() {
     rolls,
     getValidOrders,
     runDescription,
+    selectedSyncLevels,
   ]);
 
   /**
@@ -230,6 +235,7 @@ export function ConfigurationForm() {
           stockCost: stockCost ?? 0,
         },
         description: runDescription?.trim() || undefined,
+        syncLevels: selectedSyncLevels,
         stockRollIds: (() => {
           const ids = rolls
             .map((tonnage, i) => (tonnage > 0 && stockRollIds[i] ? stockRollIds[i] : null))
@@ -253,6 +259,7 @@ export function ConfigurationForm() {
       setupCost,
       stockCost,
       runDescription,
+      selectedSyncLevels,
     ],
   );
 
@@ -357,6 +364,7 @@ export function ConfigurationForm() {
     density: 'material',
     maxOrdersPerRoll: 'scenario',
     maxRollsPerOrder: 'scenario',
+    syncSelection: 'scenario',
     fireCost: 'cost',
     setupCost: 'cost',
     stockCost: 'cost',
@@ -382,6 +390,7 @@ export function ConfigurationForm() {
         density: 'Malzeme yoğunluğunu girmeyi unuttunuz.',
         maxOrdersPerRoll: 'Bir rulodaki maksimum sipariş sayısını girmelisiniz.',
         maxRollsPerOrder: 'Bir sipariş için maksimum rulo sayısını girmelisiniz.',
+        syncSelection: 'En az bir senkron seviyesi seçmelisiniz.',
         fireCost: 'Fire maliyeti (cf) alanını doldurun.',
         setupCost: 'Rulo açılış maliyeti (A) alanını doldurun.',
         stockCost: 'Elde tutma maliyeti (h) alanını doldurun.',
@@ -596,11 +605,20 @@ export function ConfigurationForm() {
             aria-labelledby="heading-scenario"
           >
             <h2 id="heading-scenario" className="sr-only">Senaryo Seçimi</h2>
+            <div className="mb-3 rounded-lg border border-indigo-100 bg-indigo-50/80 px-3 py-2">
+              <p className="text-xs text-indigo-800 leading-relaxed">
+                Buradan seçeceğiniz modlar çalıştırılır. Tek mod seçerseniz tek sonuç, birden fazla mod seçerseniz
+                kısa karşılaştırma ve CSV özet raporu görebilirsiniz. Eşzamanlı modda üst/alt değişimler sert kısıttır.
+              </p>
+            </div>
             <ScenarioSelectionCard
               maxOrdersPerRoll={maxOrdersPerRoll}
               onMaxOrdersPerRollChange={setMaxOrdersPerRoll}
               maxRollsPerOrder={maxRollsPerOrder}
               onMaxRollsPerOrderChange={setMaxRollsPerOrder}
+              selectedSyncLevels={selectedSyncLevels}
+              onSelectedSyncLevelsChange={setSelectedSyncLevels}
+              hasSyncSelectionError={missingFields.includes('syncSelection')}
               hasMaxOrdersPerRollError={missingFields.includes('maxOrdersPerRoll')}
               hasMaxRollsPerOrderError={missingFields.includes('maxRollsPerOrder')}
               blinkValidationKey={validationBlinkKey}

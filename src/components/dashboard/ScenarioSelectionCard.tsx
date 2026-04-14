@@ -1,7 +1,7 @@
 'use client';
 
 import { DashboardCard } from './DashboardCard';
-import { ROLL_ORDER_UNLIMITED } from '@/lib/api';
+import { ROLL_ORDER_UNLIMITED, type SyncLevel } from '@/lib/api';
 
 export interface ScenarioSelectionCardProps {
   maxOrdersPerRoll?: number;
@@ -15,7 +15,20 @@ export interface ScenarioSelectionCardProps {
   hasMaxRollsPerOrderError?: boolean;
   /** Doğrulama tekrar tetiklendiğinde animasyonu yeniden başlatmak için key */
   blinkValidationKey?: number;
+  /** Seçilen senkron seviyeleri. */
+  selectedSyncLevels?: SyncLevel[];
+  /** Senkron seviyeleri değiştiğinde çağrılır. */
+  onSelectedSyncLevelsChange?: (levels: SyncLevel[]) => void;
+  /** Senkron seviye seçimi eksikse hata durumu. */
+  hasSyncSelectionError?: boolean;
 }
+
+/** UI'da listelenecek senkron seviye seçeneklerini sabitler. */
+const SYNC_LEVEL_OPTIONS: { id: SyncLevel; label: string; desc: string }[] = [
+  { id: 'serbest', label: 'Serbest', desc: 'Üst/alt bağımsız değişebilir.' },
+  { id: 'dengeli', label: 'Dengeli', desc: 'Bağımsız değişim cezalı, kontrollü ayrışma.' },
+  { id: 'siki', label: 'Sıkı', desc: 'Üst/alt değişimler eşzamanlı zorlanır.' },
+];
 
 /** Verilen değerin "sonsuz" olarak kabul edilip edilmediğini döner. */
 function isUnlimited(value: number | undefined): boolean {
@@ -33,7 +46,20 @@ export function ScenarioSelectionCard({
   hasMaxOrdersPerRollError,
   hasMaxRollsPerOrderError,
   blinkValidationKey,
+  selectedSyncLevels = [],
+  onSelectedSyncLevelsChange,
+  hasSyncSelectionError,
 }: ScenarioSelectionCardProps) {
+  /** Senkron seviye seçimini aç/kapat yapar ve üst bileşene bildirir. */
+  function toggleSyncLevel(level: SyncLevel): void {
+    if (!onSelectedSyncLevelsChange) return;
+    if (selectedSyncLevels.includes(level)) {
+      onSelectedSyncLevelsChange(selectedSyncLevels.filter((l) => l !== level));
+      return;
+    }
+    onSelectedSyncLevelsChange([...selectedSyncLevels, level]);
+  }
+
   return (
     <DashboardCard title="Senaryo Seçimi" icon="tune" animationDelayMs={100}>
       <div className="space-y-6">
@@ -44,6 +70,38 @@ export function ScenarioSelectionCard({
             bırakılamaz.
           </span>
         </p>
+            <div
+              key={hasSyncSelectionError ? `sync-${blinkValidationKey}` : 'sync'}
+              className={`rounded-xl border p-4 ${hasSyncSelectionError ? 'border-accent-red animate-input-blink-error bg-red-50/40' : 'border-slate-200 bg-slate-50/50'}`}
+            >
+              <label className="block text-xs font-semibold text-slate-700 mb-2">
+                Hat senkron seviyesi (en az 1 seçim zorunlu)
+              </label>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {SYNC_LEVEL_OPTIONS.map((opt) => {
+                  const checked = selectedSyncLevels.includes(opt.id);
+                  return (
+                    <label
+                      key={opt.id}
+                      className={`rounded-lg border px-3 py-2.5 text-xs cursor-pointer transition-colors ${checked ? 'border-primary bg-primary/10 text-primary' : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400'}`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleSyncLevel(opt.id)}
+                          className="mt-0.5 accent-primary"
+                        />
+                        <span>
+                          <strong className="block text-[12px]">{opt.label}</strong>
+                          <span className="text-[11px] text-slate-500">{opt.desc}</span>
+                        </span>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
             {/* 1 ruloda maksimum kaç farklı sipariş — veri girişi / Sonsuz ayrımı net */}
             <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
               <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">

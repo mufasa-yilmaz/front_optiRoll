@@ -47,6 +47,11 @@ export interface CostsInput {
   stockCost: number;
 }
 
+/** Çok modlu optimizasyon strateji anahtarları. */
+export type OptimizationStrategyMode = 'az' | 'orta' | 'cok' | 'eszamanli';
+/** Üst/alt hat senkron seviyesi anahtarları. */
+export type SyncLevel = 'serbest' | 'dengeli' | 'siki';
+
 export interface OptimizeRequest {
   material: MaterialInput;
   orders: OrderInput[];
@@ -68,6 +73,12 @@ export interface OptimizeRequest {
   description?: string;
   /** Bu çalıştırmada kullanılan stok rulo ID'leri; işleme alında stoktan düşülüp kalanlar tekrar stoka yazılır */
   stockRollIds?: string[];
+  /** Tek çalıştırmada koşturulacak strateji modları; boşsa backend varsayılan seti kullanır. */
+  strategyModes?: OptimizationStrategyMode[];
+  /** Tekli senkron seviyesi seçimi (geri uyumluluk). */
+  syncLevel?: SyncLevel;
+  /** Karşılaştırma için seçilen senkron seviyeleri. */
+  syncLevels?: SyncLevel[];
 }
 
 export interface SummaryResponse {
@@ -111,6 +122,77 @@ export interface RollStatusItem {
   ordersUsed: number;
 }
 
+/** Mod bazlı karşılaştırma satırı: fire/maliyet/değişim ve eşzamanlılık özeti. */
+export interface ModeComparisonItem {
+  mode: OptimizationStrategyMode;
+  status: string;
+  objective: number;
+  totalCost?: number;
+  totalFire?: number;
+  totalStock?: number;
+  openedRolls?: number;
+  rollChangeCount?: number;
+  surfaceSyncViolations?: number;
+}
+
+/** Senkron seviye karşılaştırma satırı. */
+export interface SyncComparisonItem {
+  syncLevel: SyncLevel;
+  status: string;
+  totalCost?: number;
+  totalFire?: number;
+  rollChangeCount?: number;
+  synchronousChanges?: number;
+  independentChanges?: number;
+}
+
+/** Hat üzerinde tek tak-çıkar/devam olayı. */
+export interface LineEventItem {
+  timestampStep: number;
+  line: 'ust' | 'alt';
+  action: 'tak' | 'cikar' | 'devam';
+  rollId: number;
+  orderIdFrom?: number | null;
+  orderIdTo?: number | null;
+}
+
+/** Hat geçiş özet metrikleri. */
+export interface LineTransitionsSummary {
+  totalChanges: number;
+  synchronousChanges: number;
+  independentChanges: number;
+  stepCount?: number;
+}
+
+/** Tek adımda kesilen sipariş parçası. */
+export interface LineScheduleCutItem {
+  orderId: number;
+  rollId: number;
+  tonnage: number;
+  m2: number;
+  upperTonnage?: number;
+  lowerTonnage?: number;
+}
+
+/** Tek hat adımı: üst/alt rulo durumu ve kesilen parçalar. */
+export interface LineScheduleStepItem {
+  step: number;
+  orderId: number;
+  upperRollId?: number | null;
+  lowerRollId?: number | null;
+  /** Üst hat aksiyon kodu: takildi | cikarildi | devam */
+  upperAction?: string;
+  /** Alt hat aksiyon kodu */
+  lowerAction?: string;
+  /** Sipariş akışı: basladi | devam | degisti | geri_donus | tamamlandi */
+  orderAction?: string;
+  /** Operatör için kısa Türkçe özet */
+  actionSummary?: string;
+  prevUpperRollId?: number | null;
+  prevLowerRollId?: number | null;
+  cuts: LineScheduleCutItem[];
+}
+
 export interface OptimizeResponse {
   status: string;
   objective: number;
@@ -121,10 +203,25 @@ export interface OptimizeResponse {
   sequencePenalty?: number;
   sequenceViolations?: SequenceViolationItem[];
   rollOrderSequences?: Record<string, number[]>;
+  selectedModes?: OptimizationStrategyMode[];
+  selectedModesCount?: number;
+  comparisonEnabled?: boolean;
+  selectedSyncLevels?: SyncLevel[];
+  selectedSyncLevelsCount?: number;
   configurationId?: string | null;
   inputData?: OptimizeRequest;
   /** Supabase Storage'daki rapor URL'i (geçmiş sonuçlar için) */
   reportUrl?: string;
+  /** Aynı isteğin farklı strateji modlarıyla karşılaştırmalı sonuçları. */
+  modeComparisons?: ModeComparisonItem[];
+  /** Seçilen senkron seviyelerin kısa karşılaştırması. */
+  syncComparisons?: SyncComparisonItem[];
+  /** Üst/alt hat olay zaman çizelgesi. */
+  lineEvents?: LineEventItem[];
+  /** Üst/alt hat adım çizelgesi. */
+  lineSchedule?: LineScheduleStepItem[];
+  /** Hat geçiş özet metrikleri. */
+  lineTransitionsSummary?: LineTransitionsSummary;
 }
 
 export interface ValidateResponse {
@@ -344,6 +441,22 @@ export async function saveConfiguration(
  */
 export function getReportDownloadUrl(fileId: string): string {
   return `${API_BASE}/api/results/${fileId}`;
+}
+
+/**
+ * Mod karşılaştırma özetinin CSV indirme URL'ini döndürür.
+ * @param fileId - Backend'in döndürdüğü fileId
+ */
+export function getModeComparisonCsvUrl(fileId: string): string {
+  return `${API_BASE}/api/runs/${fileId}/mode-comparison.csv`;
+}
+
+/**
+ * Senkron seviye karşılaştırma özetinin CSV indirme URL'ini döndürür.
+ * @param fileId - Backend'in döndürdüğü fileId
+ */
+export function getSyncComparisonCsvUrl(fileId: string): string {
+  return `${API_BASE}/api/runs/${fileId}/sync-comparison.csv`;
 }
 
 /** Geçmiş çalıştırma özeti */

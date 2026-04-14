@@ -20,6 +20,7 @@ import {
   getRun,
   getOrders,
   ROLL_ORDER_UNLIMITED,
+  type SyncLevel,
   type OptimizeRequest,
   type Order,
 } from '@/lib/api';
@@ -88,6 +89,7 @@ export function ManualConfigurationForm() {
   const estimatedNeedTon = estimateNeedTon(orders, thickness, density, safetyStock, OPTIMIZATION_SURFACE_FACTOR);
   const [configurationId, setConfigurationId] = useState<string | null>(null);
   const [runDescription, setRunDescription] = useState('');
+  const [selectedSyncLevels, setSelectedSyncLevels] = useState<SyncLevel[]>([]);
   const [isLoadingConfiguration, setIsLoadingConfiguration] = useState(false);
   /** Bekleyen siparişler — modalda seçilip tabloya eklenebilir */
   const [availableOrders, setAvailableOrders] = useState<Order[]>([]);
@@ -140,6 +142,7 @@ export function ManualConfigurationForm() {
           stockCost,
         },
         description: runDescription?.trim() || undefined,
+        syncLevels: selectedSyncLevels,
       };
     },
     [
@@ -156,6 +159,7 @@ export function ManualConfigurationForm() {
       setupCost,
       stockCost,
       runDescription,
+      selectedSyncLevels,
     ],
   );
 
@@ -313,6 +317,11 @@ export function ManualConfigurationForm() {
       scrollToSection('scenario');
       return;
     }
+    if (selectedSyncLevels.length === 0) {
+      toast.error('En az bir senkron seviyesi seçmelisiniz.');
+      scrollToSection('scenario');
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -348,6 +357,7 @@ export function ManualConfigurationForm() {
     router,
     maxOrdersPerRoll,
     maxRollsPerOrder,
+    selectedSyncLevels,
     scrollToSection,
     runDescription,
   ]);
@@ -500,11 +510,20 @@ export function ManualConfigurationForm() {
             aria-labelledby="heading-scenario"
           >
             <h2 id="heading-scenario" className="sr-only">Senaryo Seçimi</h2>
+            <div className="mb-3 rounded-lg border border-indigo-100 bg-indigo-50/80 px-3 py-2">
+              <p className="text-xs text-indigo-800 leading-relaxed">
+                Buradan seçtiğiniz modlar çalıştırılır. Tek modda tek sonuç, çoklu modda kısa karşılaştırma ve CSV özet
+                sunulur. Eşzamanlı modda üst/alt rulo değişimi sert kuraldır.
+              </p>
+            </div>
             <ScenarioSelectionCard
               maxOrdersPerRoll={maxOrdersPerRoll}
               onMaxOrdersPerRollChange={setMaxOrdersPerRoll}
               maxRollsPerOrder={maxRollsPerOrder}
               onMaxRollsPerOrderChange={setMaxRollsPerOrder}
+              selectedSyncLevels={selectedSyncLevels}
+              onSelectedSyncLevelsChange={setSelectedSyncLevels}
+              hasSyncSelectionError={selectedSyncLevels.length === 0}
             />
           </section>
 

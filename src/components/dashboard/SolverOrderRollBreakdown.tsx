@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useDisplayResult } from '@/contexts/ResultViewContext';
+import { getModeComparisonCsvUrl, getSyncComparisonCsvUrl } from '@/lib/api';
 import type { CuttingPlanItem } from '@/lib/api';
 
 type RollSlice = {
@@ -52,42 +53,6 @@ function groupCuttingPlanByOrder(cuttingPlan: CuttingPlanItem[]): Map<number, Ro
   return map;
 }
 
-/**
- * API'de yoksa kesim planı satır sırasına göre rulodaki sipariş sırasını türetir.
- */
-function rollSequenceFromCuttingPlan(cuttingPlan: CuttingPlanItem[], rollId: number): number[] {
-  const out: number[] = [];
-  const seen = new Set<number>();
-  for (const row of cuttingPlan) {
-    if (row.rollId !== rollId) continue;
-    if (seen.has(row.orderId)) continue;
-    seen.add(row.orderId);
-    out.push(row.orderId);
-  }
-  return out;
-}
-
-/**
- * rollOrderSequences nesnesini sayı anahtarlı sıra haritasına çevirir.
- */
-function normalizeRollSequences(
-  rollOrderSequences: Record<string, number[]> | undefined,
-  cuttingPlan: CuttingPlanItem[],
-  rollIds: number[],
-): Map<number, number[]> {
-  const map = new Map<number, number[]>();
-  for (const rid of rollIds) {
-    const key = String(rid);
-    const fromApi = rollOrderSequences?.[key];
-    if (fromApi && fromApi.length > 0) {
-      map.set(rid, [...fromApi]);
-    } else {
-      map.set(rid, rollSequenceFromCuttingPlan(cuttingPlan, rid));
-    }
-  }
-  return map;
-}
-
 const fmt = (n: number, d = 2) =>
   n.toLocaleString('tr-TR', { minimumFractionDigits: d, maximumFractionDigits: d });
 
@@ -102,6 +67,56 @@ function formatTonWithM2(tonnage: number, m2: number): string {
 }
 
 /**
+ * Operatör tablosu için üst/alt hat hücre metnini üretir (tak/çıkar/devam).
+ */
+function formatOperatorHatCell(
+  rollId: number | null | undefined,
+  prevRollId: number | null | undefined,
+  action: string | undefined,
+): string {
+  if (rollId == null) return '—';
+  const a = action ?? 'devam';
+  if (a === 'devam') return `R${rollId}`;
+  if (a === 'takildi') {
+    if (prevRollId != null && prevRollId !== rollId) {
+      return `R${rollId} takıldı (R${prevRollId} çıkarıldı)`;
+    }
+    return `R${rollId} takıldı`;
+  }
+  if (a === 'cikarildi') {
+    return prevRollId != null ? `R${prevRollId} çıkarıldı` : '—';
+  }
+  return `R${rollId}`;
+}
+
+/**
+ * Sipariş aksiyon türüne göre satır arka plan sınıfı döner.
+ */
+function scheduleRowClass(orderAction: string | undefined): string {
+  if (orderAction === 'geri_donus') return 'bg-amber-50/90';
+  if (orderAction === 'tamamlandi') return 'bg-emerald-50/70';
+  if (orderAction === 'degisti') return 'bg-sky-50/70';
+  return '';
+}
+
+/**
+ * Aksiyon özetine göre metin rengi (rulo / sipariş / eşzamanlı vurgusu).
+ */
+function actionSummaryClass(step: {
+  upperAction?: string;
+  lowerAction?: string;
+  orderAction?: string;
+}): string {
+  const u = step.upperAction === 'takildi' || step.upperAction === 'cikarildi';
+  const l = step.lowerAction === 'takildi' || step.lowerAction === 'cikarildi';
+  const o = step.orderAction === 'degisti' || step.orderAction === 'geri_donus';
+  if (u && l) return 'text-rose-800 font-semibold';
+  if (u || l) return 'text-orange-800 font-medium';
+  if (o) return 'text-sky-900 font-medium';
+  return 'text-gray-700';
+}
+
+/**
  * Rulo kimliğine göre tekrarlı renk seçer.
  */
 function rollColor(rollId: number): string {
@@ -112,6 +127,23 @@ type SurfaceLane = 'üst' | 'alt';
 
 /** Görsel üst/alt bölümü: model çıktısı veya ton dengelemeli yedek yerleştirme. */
 type VisualSurfacePartition = { upperSlices: RollSlice[]; lowerSlices: RollSlice[] };
+
+/** Mod adını kullanıcıya okunur etiketle gösterir. */
+function strategyLabel(mode: string): string {
+  if (mode === 'az') return 'Az değişim';
+  if (mode === 'orta') return 'Orta (dengeli)';
+  if (mode === 'cok') return 'Çok esnek (fire odaklı)';
+  if (mode === 'eszamanli') return 'Eşzamanlı';
+  return mode;
+}
+
+/** Senkron seviye adını kullanıcıya okunur etiketle gösterir. */
+function syncLevelLabel(level: string): string {
+  if (level === 'serbest') return 'Serbest';
+  if (level === 'dengeli') return 'Dengeli';
+  if (level === 'siki') return 'Sıkı';
+  return level;
+}
 
 /**
  * Kesim satırlarında upperTonnage/lowerTonnage tanımlı mı (yeni çift yüzey modeli).
@@ -429,168 +461,21 @@ function SurfaceLaneStackedRow({
 }
 
 /**
- * İş akışı metninde kullanılan yüzey / rulo sıfatı.
- */
-function surfaceWorkflowQualifier(
-  rollId: number,
-  orderId: number,
-  byOrder: Map<number, RollSlice[]>,
-  emphasizeCoating: boolean,
-  partitionByOrder?: Map<number, VisualSurfacePartition>,
-): string {
-  const slices = byOrder.get(orderId) ?? [];
-  if (!emphasizeCoating || slices.length < 2) return 'tek hat veya çift yüzey gösterimi kapalı';
-  const slice = slices.find((s) => s.rollId === rollId);
-  if (!slice) return 'bu siparişte dilim yok';
-  const partition = partitionByOrder?.get(orderId);
-  const slot = laneSlotForSlice(slice, slices, partition);
-  if (!slot) return 'bilinmeyen rulo';
-  const side = slot.lane === 'üst' ? 'üst' : 'alt';
-  const modelSplit = slicesHaveModelSurfaceSplit(slices);
-  if (modelSplit) {
-    const u = slice.upperTonnage ?? 0;
-    const l = slice.lowerTonnage ?? 0;
-    if (u > 1e-6 && l > 1e-6) {
-      return `üst ve alt yüzey (aynı rulo, model: ${formatTon(u)} t / ${formatTon(l)} t)`;
-    }
-    if (u > 1e-6) {
-      if (slot.ordinalInLane === 1) return `üst yüzey (model — 1. rulo)`;
-      return `üst yüzey (model — ${slot.ordinalInLane}. rulo)`;
-    }
-    if (l > 1e-6) {
-      if (slot.ordinalInLane === 1) return `alt yüzey (model — 1. rulo)`;
-      return `alt yüzey (model — ${slot.ordinalInLane}. rulo)`;
-    }
-    return 'model dilimi';
-  }
-  if (slot.ordinalInLane === 1) return `${side} yüzey (grafikte 1. rulo — ton dengelemeli görsel)`;
-  return `${side} yüzey (grafikte ${slot.ordinalInLane}. rulo — aynı görsel bantta)`;
-}
-
-type WorkflowStepItem = {
-  id: string;
-  title: string;
-  detail?: string;
-};
-
-/**
- * Birleştirilmiş sıra indeksinde her rulonun hangi siparişte olduğunu ve yüzey nitelemesini döner.
- */
-function ordersAtSequenceIndex(
-  seqByRoll: Map<number, number[]>,
-  rollIds: number[],
-  index: number,
-): { rollId: number; orderId: number | null }[] {
-  const out: { rollId: number; orderId: number | null }[] = [];
-  for (const rid of rollIds) {
-    const seq = seqByRoll.get(rid) ?? [];
-    out.push({ rollId: rid, orderId: index < seq.length ? seq[index]! : null });
-  }
-  return out;
-}
-
-/**
- * Kesim planı sırasından türetilen adımlar: her pozisyonda hat durumu, ardından sipariş/rulo geçişleri.
- * Gerçek zaman çizelgesi değildir; aynı pozisyonda listelenen rulolar plan sırasında eş faz kabul edilir.
- */
-function buildChronologicalWorkflow(
-  seqByRoll: Map<number, number[]>,
-  byOrder: Map<number, RollSlice[]>,
-  emphasizeCoating: boolean,
-  partitionByOrder?: Map<number, VisualSurfacePartition>,
-): WorkflowStepItem[] {
-  const rollIds = Array.from(seqByRoll.keys()).sort((a, b) => a - b);
-  const maxLen = Math.max(0, ...rollIds.map((r) => (seqByRoll.get(r) ?? []).length));
-  const steps: WorkflowStepItem[] = [];
-
-  if (maxLen === 0) {
-    steps.push({
-      id: 'empty-seq',
-      title: 'Sıra bilgisi yok',
-      detail: 'Kesim planında rulo–sipariş satırı bulunamadı.',
-    });
-    return steps;
-  }
-
-  for (let i = 0; i < maxLen; i++) {
-    const at = ordersAtSequenceIndex(seqByRoll, rollIds, i);
-    const active = at.filter((x) => x.orderId != null);
-    const lines = active.map(({ rollId, orderId }) => {
-      const oid = orderId!;
-      const sl = (byOrder.get(oid) ?? []).find((s) => s.rollId === rollId);
-      const ton = sl ? `${formatTonWithM2(sl.tonnage, sl.m2)} (bu rulo)` : '';
-      const q = surfaceWorkflowQualifier(rollId, oid, byOrder, emphasizeCoating, partitionByOrder);
-      return `• Rulo #${rollId} — ${q}: Sipariş ${oid}${ton ? ` · ${ton}` : ''}`;
-    });
-    const idle = at.filter((x) => x.orderId == null).map((x) => `• Rulo #${x.rollId}: bu planda bu sıra adımında kesim yok (rulo değişimi veya boşta olabilir).`);
-    steps.push({
-      id: `pos-${i}`,
-      title: `Sıra ${i + 1}/${maxLen} — eşzamanlı hat görünümü`,
-      detail: [...lines, ...idle].join('\n') || 'Aktif kesim satırı yok.',
-    });
-  }
-
-  for (let i = 0; i < maxLen - 1; i++) {
-    const before = ordersAtSequenceIndex(seqByRoll, rollIds, i);
-    const after = ordersAtSequenceIndex(seqByRoll, rollIds, i + 1);
-    const changes: string[] = [];
-    for (let j = 0; j < rollIds.length; j++) {
-      const rid = rollIds[j]!;
-      const prevO = before[j]?.orderId ?? null;
-      const nextO = after[j]?.orderId ?? null;
-      if (prevO === nextO) continue;
-      const oidForQualifier = nextO ?? prevO;
-      const q =
-        oidForQualifier != null
-          ? surfaceWorkflowQualifier(rid, oidForQualifier, byOrder, emphasizeCoating, partitionByOrder)
-          : '';
-      if (prevO != null && nextO != null) {
-        changes.push(
-          `• Rulo #${rid} (${q}): Sipariş ${prevO} bu ruloda tamamlandı sayılır → Sipariş ${nextO} başlar (aynı fiziksel rulo, sipariş değişimi).`,
-        );
-      } else if (prevO != null && nextO == null) {
-        changes.push(
-          `• Rulo #${rid}: Sipariş ${prevO} sonrası bu rulo için planda yeni sipariş yok; rulo sökülüp yenisi takılabilir veya hat durur.`,
-        );
-      } else if (prevO == null && nextO != null) {
-        changes.push(
-          `• Rulo #${rid} (${q}): Bu adımda kesime giriş — Sipariş ${nextO} (önceki adımda bu ruloda iş yoktu; yeni rulo veya gecikmeli başlama).`,
-        );
-      }
-    }
-    if (changes.length > 0) {
-      steps.push({
-        id: `transition-${i}-${i + 1}`,
-        title: `Sıra ${i + 1} → ${i + 2} geçişi`,
-        detail: changes.join('\n'),
-      });
-    }
-  }
-
-  const lastIndex = maxLen - 1;
-  const finalOrders = new Set(
-    ordersAtSequenceIndex(seqByRoll, rollIds, lastIndex)
-      .map((x) => x.orderId)
-      .filter((o): o is number => o != null),
-  );
-  steps.push({
-    id: 'footnote-rolls',
-    title: 'Rulo seti ve süreklilik',
-    detail: `Çözümde kullanılan rulolar: ${rollIds.map((r) => `#${r}`).join(', ')}. Üstteki geçişlerde "aynı rulo" deniyorsa fiziksel malzeme değişmeden sipariş sırası değişmiş demektir; "yeni rulo" veya "kesim yok" ifadesi planda bu hat için devam siparişi olmadığını gösterir (gerçek saha sırası üretim yönetimine bağlıdır). Son sıra adımında aktif siparişler: ${Array.from(finalOrders)
-      .sort((a, b) => a - b)
-      .join(', ') || '—'}.`,
-  });
-
-  return steps;
-}
-
-/**
- * Sonuç ekranı: sipariş–rulo stacked şema, üst/alt bandı bilgisi ve üretim iş akışı özeti.
+ * Sonuç ekranı: sipariş–rulo stacked şema ve üst/alt bandı bilgisi.
  */
 export function SolverOrderRollBreakdown() {
   const result = useDisplayResult();
+  const [showOrderPlan, setShowOrderPlan] = useState(false);
   const cuttingPlan = result?.cuttingPlan ?? [];
-  const rollOrderSequences = result?.rollOrderSequences;
+  const modeComparisons = result?.modeComparisons ?? [];
+  const syncComparisons = result?.syncComparisons ?? [];
+  const lineEvents = result?.lineEvents ?? [];
+  const lineSchedule = result?.lineSchedule ?? [];
+  const lineTransitionsSummary = result?.lineTransitionsSummary;
+  const selectedModesCount = result?.selectedModesCount ?? result?.selectedModes?.length ?? 0;
+  const showComparison = (result?.comparisonEnabled ?? false) || selectedModesCount > 1;
+  const selectedSyncLevelsCount = result?.selectedSyncLevelsCount ?? result?.selectedSyncLevels?.length ?? 0;
+  const showSyncComparison = selectedSyncLevelsCount > 1 && syncComparisons.length > 0;
   const input = result?.inputData;
   /** Kayıtta yoksa (yeni çalıştırmalar) çift yüzey varsayılır; eski kayıtlarda 1 ise tek-yüzey sunumu korunur. */
   const surfaceFactor = input?.surfaceFactor ?? 2;
@@ -625,17 +510,6 @@ export function SolverOrderRollBreakdown() {
     cuttingPlan.forEach((c) => s.add(c.rollId));
     return Array.from(s).sort((a, b) => a - b);
   }, [cuttingPlan]);
-
-  const seqByRoll = useMemo(
-    () => normalizeRollSequences(rollOrderSequences, cuttingPlan, usedRollIds),
-    [rollOrderSequences, cuttingPlan, usedRollIds],
-  );
-
-  const workflowSteps = useMemo(
-    () =>
-      buildChronologicalWorkflow(seqByRoll, byOrder, emphasizeCoatingLanes, visualSurfacePartitionByOrder),
-    [seqByRoll, byOrder, emphasizeCoatingLanes, visualSurfacePartitionByOrder],
-  );
 
   if (!result || orderIds.length === 0) return null;
 
@@ -680,7 +554,231 @@ export function SolverOrderRollBreakdown() {
             : ''}
         </p>
       </div>
+      {showComparison && modeComparisons.length > 0 ? (
+        <div className="px-4 md:px-6 py-4 border-b border-gray-100 bg-slate-50/40">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <h4 className="text-sm font-bold text-navy-custom flex items-center gap-2">
+              <span className="material-symbols-outlined text-[20px] text-primary">compare</span>
+              Çok modlu özet karşılaştırma
+            </h4>
+            {result?.fileId ? (
+              <a
+                href={getModeComparisonCsvUrl(result.fileId)}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 hover:border-slate-400 hover:bg-slate-50"
+              >
+                <span className="material-symbols-outlined text-[16px]">download</span>
+                CSV indir
+              </a>
+            ) : null}
+          </div>
+          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+            <table className="w-full text-xs text-left">
+              <thead>
+                <tr className="uppercase tracking-wide text-gray-500 border-b border-gray-100">
+                  <th className="px-3 py-2 font-semibold">Mod</th>
+                  <th className="px-3 py-2 font-semibold">Durum</th>
+                  <th className="px-3 py-2 font-semibold text-right">Fire (t)</th>
+                  <th className="px-3 py-2 font-semibold text-right">Maliyet</th>
+                  <th className="px-3 py-2 font-semibold text-right">Rulo değişimi</th>
+                  <th className="px-3 py-2 font-semibold text-right">Sync ihlali</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {modeComparisons.map((item) => (
+                  <tr key={`${item.mode}-${item.status}`} className="hover:bg-gray-50/70">
+                    <td className="px-3 py-2.5 font-semibold text-navy-custom">{strategyLabel(item.mode)}</td>
+                    <td className="px-3 py-2.5">
+                      {item.status === 'Optimal' ? (
+                        <span className="text-emerald-700 font-semibold">Optimal</span>
+                      ) : (
+                        <span className="text-rose-700 font-semibold">{item.status}</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5 text-right text-gray-700">
+                      {typeof item.totalFire === 'number' ? formatTon(item.totalFire) : '—'}
+                    </td>
+                    <td className="px-3 py-2.5 text-right text-gray-700">
+                      {typeof item.totalCost === 'number' ? fmt(item.totalCost) : '—'}
+                    </td>
+                    <td className="px-3 py-2.5 text-right text-gray-700">
+                      {typeof item.rollChangeCount === 'number' ? item.rollChangeCount : '—'}
+                    </td>
+                    <td className="px-3 py-2.5 text-right text-gray-700">
+                      {typeof item.surfaceSyncViolations === 'number' ? item.surfaceSyncViolations : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-[11px] text-gray-500 mt-2">
+            Etiketleme: en düşük maliyet ve en düşük fire bilgisi karşılaştırma amaçlıdır; karar için operasyon kısıtlarıyla birlikte değerlendirin.
+          </p>
+        </div>
+      ) : null}
 
+      {showSyncComparison ? (
+        <div className="px-4 md:px-6 py-4 border-b border-gray-100 bg-cyan-50/30">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <h4 className="text-sm font-bold text-navy-custom flex items-center gap-2">
+              <span className="material-symbols-outlined text-[20px] text-primary">hub</span>
+              Senkron seviye kisa karsilastirma
+            </h4>
+            {result?.fileId ? (
+              <a
+                href={getSyncComparisonCsvUrl(result.fileId)}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 hover:border-slate-400 hover:bg-slate-50"
+              >
+                <span className="material-symbols-outlined text-[16px]">download</span>
+                Sync CSV
+              </a>
+            ) : null}
+          </div>
+          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+            <table className="w-full text-xs text-left">
+              <thead>
+                <tr className="uppercase tracking-wide text-gray-500 border-b border-gray-100">
+                  <th className="px-3 py-2 font-semibold">Seviye</th>
+                  <th className="px-3 py-2 font-semibold">Durum</th>
+                  <th className="px-3 py-2 font-semibold text-right">Fire (t)</th>
+                  <th className="px-3 py-2 font-semibold text-right">Maliyet</th>
+                  <th className="px-3 py-2 font-semibold text-right">Degisim</th>
+                  <th className="px-3 py-2 font-semibold text-right">Eszamanli</th>
+                  <th className="px-3 py-2 font-semibold text-right">Bagimsiz</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {syncComparisons.map((item) => (
+                  <tr key={`${item.syncLevel}-${item.status}`} className="hover:bg-gray-50/70">
+                    <td className="px-3 py-2.5 font-semibold text-navy-custom">{syncLevelLabel(item.syncLevel)}</td>
+                    <td className="px-3 py-2.5">{item.status}</td>
+                    <td className="px-3 py-2.5 text-right">{typeof item.totalFire === 'number' ? formatTon(item.totalFire) : '—'}</td>
+                    <td className="px-3 py-2.5 text-right">{typeof item.totalCost === 'number' ? fmt(item.totalCost) : '—'}</td>
+                    <td className="px-3 py-2.5 text-right">{item.rollChangeCount ?? '—'}</td>
+                    <td className="px-3 py-2.5 text-right">{item.synchronousChanges ?? '—'}</td>
+                    <td className="px-3 py-2.5 text-right">{item.independentChanges ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="px-4 md:px-6 py-4 border-b border-gray-100 bg-emerald-50/30">
+        <h4 className="text-sm font-bold text-navy-custom mb-1 flex items-center gap-2">
+          <span className="material-symbols-outlined text-[20px] text-primary">timeline</span>
+          Hat olaylari ve operatör adim plani
+        </h4>
+        <p className="text-[10px] text-gray-600 mb-2 leading-snug">
+          Her adımda üst ve alt hat aynı siparişi keser. Aksiyon özeti MILP sıralaması ve rulo geçmişiyle üretilir.
+        </p>
+        {lineTransitionsSummary ? (
+          <div className="flex flex-wrap gap-3 text-[11px] text-gray-700 mb-2">
+            <span>Toplam degisim: <strong>{lineTransitionsSummary.totalChanges}</strong></span>
+            <span>Eszamanli: <strong>{lineTransitionsSummary.synchronousChanges}</strong></span>
+            <span>Bagimsiz: <strong>{lineTransitionsSummary.independentChanges}</strong></span>
+            <span>Adim: <strong>{lineTransitionsSummary.stepCount ?? lineSchedule.length}</strong></span>
+          </div>
+        ) : null}
+        {lineSchedule.length > 0 ? (
+          <div className="mb-3 overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+            <table className="w-full text-xs text-left">
+              <thead>
+                <tr className="uppercase tracking-wide text-gray-500 border-b border-gray-100">
+                  <th className="px-3 py-2 font-semibold whitespace-nowrap">Adim</th>
+                  <th className="px-3 py-2 font-semibold min-w-[140px]">Ust hat</th>
+                  <th className="px-3 py-2 font-semibold min-w-[140px]">Alt hat</th>
+                  <th className="px-3 py-2 font-semibold whitespace-nowrap">Aktif siparis</th>
+                  <th className="px-3 py-2 font-semibold min-w-[180px]">Aksiyon</th>
+                  <th className="px-3 py-2 font-semibold">Kesilen parca</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {lineSchedule.map((step) => (
+                  <tr
+                    key={`sch-${step.step}-${step.orderId}-${step.upperRollId ?? 'u'}-${step.lowerRollId ?? 'l'}`}
+                    className={`hover:bg-gray-50/70 ${scheduleRowClass(step.orderAction)}`}
+                  >
+                    <td className="px-3 py-2.5 font-semibold text-navy-custom whitespace-nowrap">{step.step}</td>
+                    <td className="px-3 py-2.5 text-gray-800 leading-snug">
+                      {formatOperatorHatCell(
+                        step.upperRollId,
+                        step.prevUpperRollId ?? undefined,
+                        step.upperAction,
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5 text-gray-800 leading-snug">
+                      {formatOperatorHatCell(
+                        step.lowerRollId,
+                        step.prevLowerRollId ?? undefined,
+                        step.lowerAction,
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap font-medium text-navy-custom">#{step.orderId}</td>
+                    <td className={`px-3 py-2.5 leading-snug ${actionSummaryClass(step)}`}>
+                      {step.actionSummary ?? '—'}
+                    </td>
+                    <td className="px-3 py-2.5 text-gray-600 leading-snug">
+                      {step.cuts
+                        .map((c) => `S${c.orderId}/R${c.rollId}: ${formatTonWithM2(c.tonnage, c.m2)}`)
+                        .join(' · ') || '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+        {lineEvents.length === 0 ? (
+          <p className="text-xs text-gray-500">Hat olayi verisi bulunamadi.</p>
+        ) : (
+          <div className="max-h-72 overflow-auto rounded-lg border border-gray-200 bg-white">
+            <table className="w-full text-xs text-left">
+              <thead>
+                <tr className="uppercase tracking-wide text-gray-500 border-b border-gray-100">
+                  <th className="px-3 py-2 font-semibold">Adim</th>
+                  <th className="px-3 py-2 font-semibold">Hat</th>
+                  <th className="px-3 py-2 font-semibold">Aksiyon</th>
+                  <th className="px-3 py-2 font-semibold">Rulo</th>
+                  <th className="px-3 py-2 font-semibold">Siparis</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {lineEvents.map((ev, idx) => (
+                  <tr key={`${ev.timestampStep}-${ev.line}-${ev.rollId}-${idx}`} className="hover:bg-gray-50/70">
+                    <td className="px-3 py-2.5">{ev.timestampStep}</td>
+                    <td className="px-3 py-2.5">{ev.line === 'ust' ? 'Ust' : 'Alt'}</td>
+                    <td className="px-3 py-2.5">{ev.action}</td>
+                    <td className="px-3 py-2.5">R{ev.rollId}</td>
+                    <td className="px-3 py-2.5">
+                      {ev.orderIdFrom ? `#${ev.orderIdFrom}` : '—'} → {ev.orderIdTo ? `#${ev.orderIdTo}` : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div className="px-4 md:px-6 py-3 border-b border-gray-100 bg-gray-50/60 flex items-center justify-between">
+        <h4 className="text-sm font-bold text-navy-custom">Siparis bazli kesim plani</h4>
+        <button
+          type="button"
+          onClick={() => setShowOrderPlan((prev) => !prev)}
+          className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 hover:border-slate-400 hover:bg-slate-50"
+        >
+          <span className="material-symbols-outlined text-[16px]">{showOrderPlan ? 'visibility_off' : 'visibility'}</span>
+          {showOrderPlan ? 'Gizle' : 'Goster'}
+        </button>
+      </div>
+
+      {showOrderPlan ? (
       <div className="p-4 md:p-6 space-y-4">
         {orderIds.map((orderId) => {
           const slices = byOrder.get(orderId) ?? [];
@@ -950,6 +1048,9 @@ export function SolverOrderRollBreakdown() {
           );
         })}
       </div>
+      ) : (
+        <div className="px-4 md:px-6 py-4 text-xs text-gray-500">Siparis bazli kesim plani varsayilan olarak gizlidir.</div>
+      )}
 
       {emphasizeCoatingLanes && orderIds.length > 0 && (
         <div className="px-4 md:px-6 py-4 border-t border-gray-200 bg-slate-50/50">
@@ -1017,31 +1118,6 @@ export function SolverOrderRollBreakdown() {
         </div>
       </div>
 
-      <div className="border-t border-gray-200">
-        <div className="px-5 py-4 bg-navy-custom/5 border-b border-gray-100">
-          <h4 className="font-bold text-gray-900 flex items-center gap-2 text-sm">
-            <span className="material-symbols-outlined text-primary text-[20px]">format_list_numbered</span>
-            İş akışı ve geçiş noktaları
-          </h4>
-          <p className="text-xs text-gray-500 mt-1">
-            Önce her sıra adımında tüm aktif ruloların hangi siparişte olduğu listelenir; ardından bir sonraki adıma
-            geçerken hangi görsel yüzey bandında (ton dengelemeli üst/alt) sipariş değiştiği veya rulo boşa çıktığı
-            yazılır. Kayıtlı
-            koşularda API sırası yoksa sıra kesim planı satır sırasından türetilir — gerçek üretim zamanlamasıyla
-            birebir örtüşmeyebilir.
-          </p>
-        </div>
-        <ol className="list-decimal list-inside space-y-3 p-5 md:p-6 text-sm text-gray-800">
-          {workflowSteps.map((step) => (
-            <li key={step.id} className="pl-1">
-              <span className="font-semibold text-navy-custom">{step.title}</span>
-              {step.detail && (
-                <p className="text-xs text-gray-600 mt-1 ml-5 leading-relaxed whitespace-pre-line">{step.detail}</p>
-              )}
-            </li>
-          ))}
-        </ol>
-      </div>
     </div>
   );
 }
