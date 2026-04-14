@@ -355,8 +355,13 @@ export interface StockRoll {
  * @param data - OptimizeRequest
  * @returns OptimizeResponse
  */
-/** API isteği timeout (2 dakika) */
-const OPTIMIZE_TIMEOUT_MS = 2 * 60 * 1000;
+/**
+ * Optimizasyon isteği için istemci bekleme üst sınırı (dakika).
+ * Sunucu ardışık çalıştırır: her seçili senkron seviyesi ve strateji modu için ayrı LP (her biri ~120 sn).
+ * Kısa sürede kesmek sunucu hâlâ çözerken tarayıcıda yanlış “zaman aşımı” üretirdi.
+ */
+const OPTIMIZE_TIMEOUT_MINUTES = 20;
+const OPTIMIZE_TIMEOUT_MS = OPTIMIZE_TIMEOUT_MINUTES * 60 * 1000;
 
 /** Backend JSON hata cevabından mesaj metnini çıkarır (detail string veya string[]). */
 function getErrorMessage(err: { detail?: string | string[] }, fallback: string): string {
@@ -389,7 +394,9 @@ export async function optimize(data: OptimizeRequest): Promise<OptimizeResponse>
   } catch (e) {
     clearTimeout(timeoutId);
     if (e instanceof Error && e.name === 'AbortError') {
-      throw new Error('Hesaplama zaman aşımına uğradı (2 dk). Lütfen tekrar deneyin.');
+      throw new Error(
+        `Hesaplama zaman aşımına uğradı (${OPTIMIZE_TIMEOUT_MINUTES} dk). Çoklu senkron/mod seçiminde süre uzayabilir; gerekirse seçenek sayısını azaltıp tekrar deneyin.`,
+      );
     }
     if (e instanceof TypeError && (e.message === 'Failed to fetch' || e.message.includes('fetch'))) {
       throw new Error(`Backend'e bağlanılamadı. API URL: ${API_BASE} — CORS veya adres kontrol edin.`);

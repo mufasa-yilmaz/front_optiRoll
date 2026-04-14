@@ -469,7 +469,6 @@ export function SolverOrderRollBreakdown() {
   const cuttingPlan = result?.cuttingPlan ?? [];
   const modeComparisons = result?.modeComparisons ?? [];
   const syncComparisons = result?.syncComparisons ?? [];
-  const lineEvents = result?.lineEvents ?? [];
   const lineSchedule = result?.lineSchedule ?? [];
   const lineTransitionsSummary = result?.lineTransitionsSummary;
   const selectedModesCount = result?.selectedModesCount ?? result?.selectedModes?.length ?? 0;
@@ -734,36 +733,6 @@ export function SolverOrderRollBreakdown() {
             </table>
           </div>
         ) : null}
-        {lineEvents.length === 0 ? (
-          <p className="text-xs text-gray-500">Hat olayi verisi bulunamadi.</p>
-        ) : (
-          <div className="max-h-72 overflow-auto rounded-lg border border-gray-200 bg-white">
-            <table className="w-full text-xs text-left">
-              <thead>
-                <tr className="uppercase tracking-wide text-gray-500 border-b border-gray-100">
-                  <th className="px-3 py-2 font-semibold">Adim</th>
-                  <th className="px-3 py-2 font-semibold">Hat</th>
-                  <th className="px-3 py-2 font-semibold">Aksiyon</th>
-                  <th className="px-3 py-2 font-semibold">Rulo</th>
-                  <th className="px-3 py-2 font-semibold">Siparis</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {lineEvents.map((ev, idx) => (
-                  <tr key={`${ev.timestampStep}-${ev.line}-${ev.rollId}-${idx}`} className="hover:bg-gray-50/70">
-                    <td className="px-3 py-2.5">{ev.timestampStep}</td>
-                    <td className="px-3 py-2.5">{ev.line === 'ust' ? 'Ust' : 'Alt'}</td>
-                    <td className="px-3 py-2.5">{ev.action}</td>
-                    <td className="px-3 py-2.5">R{ev.rollId}</td>
-                    <td className="px-3 py-2.5">
-                      {ev.orderIdFrom ? `#${ev.orderIdFrom}` : '—'} → {ev.orderIdTo ? `#${ev.orderIdTo}` : '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
 
       <div className="px-4 md:px-6 py-3 border-b border-gray-100 bg-gray-50/60 flex items-center justify-between">
