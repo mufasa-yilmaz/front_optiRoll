@@ -42,18 +42,55 @@ function rollTotalMap(rollStatus: RollStatusItem[]): Map<number, number> {
   return m;
 }
 
+/**
+ * Bir hat adımında verilen rulo için cuts içinden tonaj okur.
+ */
+function tonnageCutForRollOnStep(step: LineScheduleStepItem, rollId: number | null): number {
+  if (rollId == null) return 0;
+  const cut = step.cuts.find((c) => c.rollId === rollId);
+  return cut?.tonnage ?? 0;
+}
+
+/**
+ * Bu adım başında ruloda kalan ton: stok toplamı eksi önceki adımlardaki kesimler (schedule sırası).
+ */
+function remainingTonBeforeStep(
+  schedule: LineScheduleStepItem[],
+  stepIndex: number,
+  rollId: number | null,
+  rollTotals: Map<number, number>,
+  fallbackTotal: number,
+): number {
+  if (rollId == null) return 0;
+  const initial = rollTotals.get(rollId) ?? fallbackTotal;
+  let consumed = 0;
+  for (let j = 0; j < stepIndex; j += 1) {
+    consumed += tonnageCutForRollOnStep(schedule[j], rollId);
+  }
+  return Math.max(0, initial - consumed);
+}
+
 type ScheduleLaneProps = {
   bandLabel: string;
   rollId: number | null | undefined;
   orderId: number;
   tonnage: number;
   m2: number;
-  rollTotalTon: number;
-  globalMaxTon: number;
+  /** Stok / rollStatus başlangıç toplamı (tooltip). */
+  initialRollTon: number;
+  /** Bu adım öncesi ruloda kalan ton (önceki adımlar düşülmüş). */
+  remainingBeforeStepTon: number;
+  /**
+   * Çalıştırmadaki en büyük rulo toplam tonu; tüm adımlarda aynı px/ton ölçeği.
+   * Aynı tonaj kesimi üst/alt ve adımlar arası aynı mavi genişliğe denk gelir.
+   */
+  chartScaleTon: number;
 };
 
 /**
  * Tek hat (üst veya alt) için tek adımlık segment çubuğu çizer.
+ * Grafik genişliği chartScaleTon (en büyük rulo) ile sabitlenir; çubuk uzunluğu bu adım öncesi
+ * kalan tona göre kısalır. Mavi = bu adım kesimi, gri = kesim sonrası kalan (kümülatif).
  */
 function ScheduleLaneBar({
   bandLabel,
@@ -61,13 +98,20 @@ function ScheduleLaneBar({
   orderId,
   tonnage,
   m2,
-  rollTotalTon,
-  globalMaxTon,
+  initialRollTon,
+  remainingBeforeStepTon,
+  chartScaleTon,
 }: ScheduleLaneProps) {
-  const denom = Math.max(rollTotalTon, globalMaxTon, 1e-6);
-  const trackPct = Math.min(100, (rollTotalTon / globalMaxTon) * 100);
-  const segPct = tonnage > 1e-6 ? Math.min(100, (tonnage / denom) * 100) : 0;
+  const M = Math.max(chartScaleTon, 1e-9);
   const col = orderColor(orderId);
+  const remBefore = Math.max(0, remainingBeforeStepTon);
+  /** Bu adım öncesi kalan, max ruloya göre — rulonun “fiziksel” uzunluğu adımlarla kısalır. */
+  const trackPct = Math.min(100, (remBefore / M) * 100);
+  const remainingAfterTon = Math.max(0, remBefore - tonnage);
+  const hasRoll = rollId != null && initialRollTon > 1e-6;
+  /** Bu adımda kesilen pay, adım öncesi kalan içinde (mavi / gri). */
+  const usedFracOfRoll =
+    tonnage > 1e-6 && remBefore > 1e-9 ? Math.min(1, tonnage / remBefore) : 0;
 
   return (
     <div className="flex items-center gap-3">
@@ -78,27 +122,53 @@ function ScheduleLaneBar({
         {rollId != null ? `Rulo #${rollId}` : '—'}
       </div>
       <div className="flex-1 flex flex-col gap-0.5 min-w-0">
-        <div
-          className="h-9 rounded-lg overflow-hidden flex bg-gray-100 border border-gray-100"
-          style={{ minHeight: 36, width: `${trackPct}%`, minWidth: tonnage > 1e-6 ? 120 : 80 }}
-        >
-          {tonnage > 1e-6 ? (
-            <div
-              className="h-full flex items-center justify-center text-white text-[11px] font-bold border-r border-white/25 px-1"
-              style={{
-                width: `${segPct}%`,
-                backgroundColor: col,
-                minWidth: tonnage > 0.4 ? undefined : 56,
-              }}
-              title={`Sipariş ${orderId}: ${formatTon(tonnage)} t · ${fmtM2(m2)} m²`}
-            >
-              S{orderId} ({formatTon(tonnage)}t)
-            </div>
-          ) : (
-            <div className="h-full flex-1 flex items-center justify-center text-gray-400 text-[11px] italic">
-              —
-            </div>
-          )}
+        <div className="w-full flex min-w-0">
+          <div
+            className="h-9 rounded-lg overflow-hidden flex bg-gray-100 border border-gray-100 shrink-0"
+            style={{ minHeight: 36, width: `${trackPct}%` }}
+          >
+            {!hasRoll ? (
+              <div className="h-full flex-1 flex items-center justify-center text-gray-400 text-[11px] italic">
+                —
+              </div>
+            ) : tonnage > 1e-6 ? (
+              <>
+                <div
+                  className="h-full flex items-center justify-center text-white text-[11px] font-bold border-r border-white/25 px-1 shrink-0 overflow-hidden"
+                  style={{
+                    flex: `0 0 ${usedFracOfRoll * 100}%`,
+                    backgroundColor: col,
+                    minWidth:
+                      usedFracOfRoll > 0 && usedFracOfRoll * 100 < 18 ? '4.5rem' : undefined,
+                  }}
+                  title={`Sipariş ${orderId}: ${formatTon(tonnage)} t · ${fmtM2(m2)} m² · Adım öncesi kalan ${formatTon(remBefore)} t`}
+                >
+                  <span className="truncate text-center leading-tight">
+                    S{orderId} ({formatTon(tonnage)}t)
+                  </span>
+                </div>
+                <div
+                  className="h-full flex-1 min-w-0 flex items-center justify-center bg-gray-200/80 text-slate-600 text-[10px] sm:text-[11px] font-semibold px-1 overflow-hidden"
+                  title={`Kalan (bu adım sonrası): ${formatTon(remainingAfterTon)} t`}
+                >
+                  {remainingAfterTon > 1e-4 ? (
+                    <span className="truncate text-center leading-tight">
+                      Kalan {formatTon(remainingAfterTon)} t
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-slate-400">—</span>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div
+                className="h-full flex-1 flex items-center justify-center bg-gray-200/80 text-slate-600 text-[10px] sm:text-[11px] font-semibold px-2"
+                title={`Kalan: ${formatTon(remBefore)} t`}
+              >
+                Kalan {formatTon(remBefore)} t
+              </div>
+            )}
+          </div>
         </div>
         <div className="text-[10px] text-gray-500">
           Adım ton: {formatTon(tonnage)} t · {fmtM2(m2)} m²
@@ -161,14 +231,14 @@ export function RuloSiparisKullanimChart() {
         </h2>
         <p className="text-sm text-white/80 mt-1">
           {hasSchedule
-            ? 'Hat adımları (üst / alt sırayla); her adımda iki hat aynı siparişi keser · ton'
+            ? `Hat adımları (üst / alt); ölçek: en büyük rulo ${formatTon(maxTonaj)} t — aynı kesim tonajı aynı mavi genişlikte; rulolar önceki adımlar düşülerek kısalır`
             : 'Her rulonun sipariş bazında dağılımı (ton)'}
         </p>
       </div>
       <div className="p-6">
         {hasSchedule ? (
           <div className="space-y-6">
-            {schedule.map((step: LineScheduleStepItem) => {
+            {schedule.map((step: LineScheduleStepItem, stepIdx: number) => {
               const oid = step.orderId;
               const uId = step.upperRollId ?? null;
               const lId = step.lowerRollId ?? null;
@@ -184,6 +254,8 @@ export function RuloSiparisKullanimChart() {
               const lM2 = lowerCut?.m2 ?? 0;
               const uTotal = uId != null ? rollTotals.get(uId) ?? maxTonaj : maxTonaj;
               const lTotal = lId != null ? rollTotals.get(lId) ?? maxTonaj : maxTonaj;
+              const uRemBefore = remainingTonBeforeStep(schedule, stepIdx, uId, rollTotals, maxTonaj);
+              const lRemBefore = remainingTonBeforeStep(schedule, stepIdx, lId, rollTotals, maxTonaj);
 
               return (
                 <div
@@ -207,8 +279,9 @@ export function RuloSiparisKullanimChart() {
                       orderId={oid}
                       tonnage={uTon}
                       m2={uM2}
-                      rollTotalTon={uTotal}
-                      globalMaxTon={maxTonaj}
+                      initialRollTon={uTotal}
+                      remainingBeforeStepTon={uRemBefore}
+                      chartScaleTon={maxTonaj}
                     />
                     <ScheduleLaneBar
                       bandLabel="Alt"
@@ -216,8 +289,9 @@ export function RuloSiparisKullanimChart() {
                       orderId={oid}
                       tonnage={lTon}
                       m2={lM2}
-                      rollTotalTon={lTotal}
-                      globalMaxTon={maxTonaj}
+                      initialRollTon={lTotal}
+                      remainingBeforeStepTon={lRemBefore}
+                      chartScaleTon={maxTonaj}
                     />
                   </div>
                 </div>
