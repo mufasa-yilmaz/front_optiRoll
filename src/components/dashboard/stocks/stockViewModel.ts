@@ -36,8 +36,8 @@ export function buildStockPageViewModel(stockSets: StockSetEntity[]): StockPageV
     const cleanRolls = (setItem.rolls || []).map((item) => Number(item)).filter((item) => item > 0);
     const totalTon = cleanRolls.reduce((sum, item) => sum + item, 0);
     const usageRate = computeUsageRate(totalTon, index);
-    const usedTon = Number((totalTon * usageRate).toFixed(2));
-    const remainingTon = Math.max(0, Number((totalTon - usedTon).toFixed(2)));
+    const usedTon = Number((totalTon * usageRate).toFixed(3));
+    const remainingTon = Math.max(0, Number((totalTon - usedTon).toFixed(3)));
     const status = resolveStatus(remainingTon);
     return {
       id: `${setItem.id}-${index}`,

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { formatTonDisplayTr } from '@/components/dashboard/orders/helpers';
 import type { StockLedgerRow } from './types';
 
 interface StockLedgerTableProps {
@@ -126,7 +127,7 @@ export function StockLedgerTable({
                           style={{ width: `${Math.round(row.usageRate * 100)}%` }}
                         />
                       </div>
-                      <p className="text-[10px] italic text-slate-400">Başlangıç: {row.totalTon.toFixed(2)} ton</p>
+                      <p className="text-[10px] italic text-slate-400">Başlangıç: {formatTonDisplayTr(row.totalTon)} ton</p>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-slate-500">{row.createdAtText}</td>
