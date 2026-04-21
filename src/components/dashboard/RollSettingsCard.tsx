@@ -54,19 +54,7 @@ type RollTonnageInputProps = {
 function RollTonnageInput({ ton, onCommit, className, readOnly = false }: RollTonnageInputProps) {
   const [draft, setDraft] = useState<string | null>(null);
 
-  const display = draft !== null ? draft : tonToInputDisplay(ton);
-
-  if (readOnly) {
-    return (
-      <span
-        className={`${className ?? ''} block cursor-default border border-transparent bg-slate-50 py-1.5 px-2 text-sm text-slate-800 tabular-nums dark:bg-slate-800/60 dark:text-slate-100`}
-        title="Stok tonajı; bu ekranda değiştirilemez."
-      >
-        {formatTonDisplayTr(ton)}
-      </span>
-    );
-  }
-
+  /** Blur veya yarım ifadeyi normalize eder; hook sırası her renderda aynı kalmalı (readOnly dalından önce). */
   const commitRaw = useCallback(
     (raw: string) => {
       const t = raw.trim();
@@ -86,6 +74,19 @@ function RollTonnageInput({ ton, onCommit, className, readOnly = false }: RollTo
     },
     [onCommit],
   );
+
+  const display = draft !== null ? draft : tonToInputDisplay(ton);
+
+  if (readOnly) {
+    return (
+      <span
+        className={`${className ?? ''} block cursor-default border border-transparent bg-slate-50 py-1.5 px-2 text-sm text-slate-800 tabular-nums dark:bg-slate-800/60 dark:text-slate-100`}
+        title="Stok tonajı; bu ekranda değiştirilemez."
+      >
+        {formatTonDisplayTr(ton)}
+      </span>
+    );
+  }
 
   return (
     <input

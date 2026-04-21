@@ -68,6 +68,35 @@ function estimateNeedTon(
   return baseTon * (1 + (safetyStockPercent ?? 0) / 100);
 }
 
+/** Zorunlu alan doğrulamasında kullanılan eksik alan anahtarı. */
+type ConfigurationMissingFieldKey =
+  | 'description'
+  | 'thickness'
+  | 'density'
+  | 'maxOrdersPerRoll'
+  | 'maxRollsPerOrder'
+  | 'fireCost'
+  | 'setupCost'
+  | 'stockCost'
+  | 'orders'
+  | 'rolls'
+  | 'syncSelection';
+
+/** Eksik alandan sayfa bölümü id'sine eşleme (kaydırma için); her renderda aynı nesne. */
+const EKSIK_ALAN_BOLUM_ID: Record<ConfigurationMissingFieldKey, string> = {
+  description: 'description',
+  thickness: 'material',
+  density: 'material',
+  maxOrdersPerRoll: 'scenario',
+  maxRollsPerOrder: 'scenario',
+  syncSelection: 'scenario',
+  fireCost: 'cost',
+  setupCost: 'cost',
+  stockCost: 'cost',
+  rolls: 'rolls',
+  orders: 'orders',
+};
+
 /**
  * Konfigürasyon formu: tüm inputları toplar, API çağrısı yapar, sonucu context'e yazar.
  */
@@ -127,20 +156,7 @@ export function ConfigurationForm() {
 
   /** Stok ruloları yüklendiğinde rolls ve stockRollIds doldurulur (loadPresetSets içinde). availableRolls artık sadece boş başlangıç için kullanılmıyor. */
 
-  type MissingFieldKey =
-    | 'description'
-    | 'thickness'
-    | 'density'
-    | 'maxOrdersPerRoll'
-    | 'maxRollsPerOrder'
-    | 'fireCost'
-    | 'setupCost'
-    | 'stockCost'
-    | 'orders'
-    | 'rolls'
-    | 'syncSelection';
-
-  const [missingFields, setMissingFields] = useState<MissingFieldKey[]>([]);
+  const [missingFields, setMissingFields] = useState<ConfigurationMissingFieldKey[]>([]);
   const [validationBlinkKey, setValidationBlinkKey] = useState(0);
 
   /**
@@ -170,8 +186,8 @@ export function ConfigurationForm() {
   /**
    * Konfigürasyon formu için zorunlu alanları kontrol eder, eksik/uygunsuz olanları döner.
    */
-  const validateRequiredFields = useCallback((): MissingFieldKey[] => {
-    const missing: MissingFieldKey[] = [];
+  const validateRequiredFields = useCallback((): ConfigurationMissingFieldKey[] => {
+    const missing: ConfigurationMissingFieldKey[] = [];
 
     if (!runDescription?.trim()) missing.push('description');
     // Malzeme kalınlığı ve yoğunluk opsiyonel (varsayılanlar API'de kullanılır).
@@ -196,7 +212,6 @@ export function ConfigurationForm() {
     fireCost,
     setupCost,
     stockCost,
-    orders,
     rolls,
     getValidOrders,
     runDescription,
@@ -358,21 +373,6 @@ export function ConfigurationForm() {
     };
   }, [isLoading]);
 
-  /** Eksik alan anahtarından ilgili bölüm id'sine eşleme (kaydırma için). */
-  const missingFieldToSectionId: Record<MissingFieldKey, string> = {
-    description: 'description',
-    thickness: 'material',
-    density: 'material',
-    maxOrdersPerRoll: 'scenario',
-    maxRollsPerOrder: 'scenario',
-    syncSelection: 'scenario',
-    fireCost: 'cost',
-    setupCost: 'cost',
-    stockCost: 'cost',
-    rolls: 'rolls',
-    orders: 'orders',
-  };
-
   const scrollToSection = useCallback((sectionId: string) => {
     const el = document.getElementById(`section-${sectionId}`);
     el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -385,7 +385,7 @@ export function ConfigurationForm() {
       setValidationBlinkKey((prev) => prev + 1);
 
       const first = missing[0];
-      const messageMap: Partial<Record<MissingFieldKey, string>> = {
+      const messageMap: Partial<Record<ConfigurationMissingFieldKey, string>> = {
         description: 'Açıklama alanı zorunludur. Sonuçlar tablosunda görünecek kısa bir açıklama yazın.',
         thickness: 'Malzeme kalınlığını girmeyi unuttunuz.',
         density: 'Malzeme yoğunluğunu girmeyi unuttunuz.',
@@ -400,7 +400,7 @@ export function ConfigurationForm() {
       };
 
       toast.error(messageMap[first ?? 'orders'] ?? 'Şu noktaları doldurmayı unuttunuz.');
-      const sectionId = first ? missingFieldToSectionId[first] : 'material';
+      const sectionId = first ? EKSIK_ALAN_BOLUM_ID[first] : 'material';
       scrollToSection(sectionId);
       return;
     }
@@ -433,7 +433,6 @@ export function ConfigurationForm() {
       setLoading(false);
     }
   }, [
-    orders,
     getValidOrders,
     buildOptimizeRequest,
     setLastResult,

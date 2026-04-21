@@ -464,7 +464,11 @@ function SurfaceLaneStackedRow({
 export function SolverOrderRollBreakdown() {
   const result = useDisplayResult();
   const [showOrderPlan, setShowOrderPlan] = useState(false);
-  const cuttingPlan = result?.cuttingPlan ?? [];
+  /** useMemo ile referans sabitlenir; aşağıdaki useMemo bağımlılık uyarılarını önler. */
+  const cuttingPlan = useMemo(
+    () => result?.cuttingPlan ?? [],
+    [result?.cuttingPlan],
+  );
   const modeComparisons = result?.modeComparisons ?? [];
   const syncComparisons = result?.syncComparisons ?? [];
   const lineSchedule = result?.lineSchedule ?? [];
