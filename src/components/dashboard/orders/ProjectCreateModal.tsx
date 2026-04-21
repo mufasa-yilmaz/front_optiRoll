@@ -1,4 +1,11 @@
-import { getPriorityBadge, getPriorityLabel, getStatusIcon, getStatusLabel, getStatusTextClass } from './helpers';
+import {
+  formatTonDisplayTr,
+  getPriorityBadge,
+  getPriorityLabel,
+  getStatusIcon,
+  getStatusLabel,
+  getStatusTextClass,
+} from './helpers';
 import type { NewOrderForm, OrderPipelineRow } from './types';
 
 interface ProjectCreateModalProps {
@@ -233,7 +240,7 @@ export function ProjectCreateModal({
                       <td className="px-6 py-4 text-sm text-slate-600 font-mono">
                         {((row.widthMm / 1000) * row.lengthM).toFixed(2)} m²
                       </td>
-                      <td className="px-6 py-4 text-center text-sm">{row.weightTon.toFixed(2)} t</td>
+                      <td className="px-6 py-4 text-center text-sm">{formatTonDisplayTr(row.weightTon)} t</td>
                       <td className="px-6 py-4 text-center">
                         <span className={`rounded px-2 py-0.5 text-[10px] font-black uppercase ${getPriorityBadge(row.priority)}`}>
                           {getPriorityLabel(row.priority)}

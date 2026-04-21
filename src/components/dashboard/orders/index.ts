@@ -18,6 +18,8 @@ export {
   sumOrdersEstimatedDemandTon,
   DEFAULT_ORDER_TABLE_MATERIAL,
   formatTonDisplayTr,
+  formatTonTrUnrounded,
+  TON_DISPLAY_DECIMALS,
 } from './helpers';
 export type { OrderPipelineRow, NewOrderForm, MaterialType } from './types';
 export type { OrderFormData } from './OrderCreateModal';

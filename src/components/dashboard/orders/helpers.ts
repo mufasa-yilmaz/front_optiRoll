@@ -52,11 +52,29 @@ export function sumOrdersEstimatedDemandTon(
   return orders.reduce((acc, o) => acc + estimateOrderDemandTon(o, thicknessMm, densityKgM3, surfaceFactor), 0);
 }
 
+/** Ton cinsinden gösterimde virgülden sonraki ondalık basamak sayısı (hesap hassasiyeti). */
+export const TON_DISPLAY_DECIMALS = 3;
+
 /**
- * Tahmini ton değerini arayüzde göstermek için Türkçe biçimlendirir (ondalık ayırıcı virgül, iki basamak).
+ * Tahmini ton değerini arayüzde göstermek için Türkçe biçimlendirir (ondalık ayırıcı virgül, üç basamak).
  */
 export function formatTonDisplayTr(ton: number): string {
-  return ton.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return ton.toLocaleString('tr-TR', {
+    minimumFractionDigits: TON_DISPLAY_DECIMALS,
+    maximumFractionDigits: TON_DISPLAY_DECIMALS,
+  });
+}
+
+/**
+ * Rulo tablosu gibi yerlerde sabit 3 haneye zorlamadan ton gösterir (API ham değerine yakın).
+ */
+export function formatTonTrUnrounded(ton: number): string {
+  const x = Number(ton);
+  if (!Number.isFinite(x)) return '—';
+  return x.toLocaleString('tr-TR', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 8,
+  });
 }
 
 /**
@@ -146,7 +164,7 @@ export function fromApiOrderRow(
   const panelLengthM = Number(row.panelLength ?? 1);
   const widthMm = Math.max(1, Math.round(panelWidth * 1000));
   /** Galvaniz 0.75 mm varsayımı ile tahmini ağırlık */
-  const weightTon = Number((calcWeightTon(m2, 0.75, 'galvaniz')).toFixed(2));
+  const weightTon = Number((calcWeightTon(m2, 0.75, 'galvaniz')).toFixed(TON_DISPLAY_DECIMALS));
   return {
     id: row.orderId?.trim() || `ORD-${new Date().getFullYear()}-${String(index + 1).padStart(3, '0')}`,
     widthMm,
