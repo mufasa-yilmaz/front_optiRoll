@@ -5,7 +5,7 @@
  */
 import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { optimize, type OptimizeResponse } from '@/lib/api';
+import { optimize, toastOptimizerError, type OptimizeResponse } from '@/lib/api';
 import { ResultViewProvider } from '@/contexts/ResultViewContext';
 import { buildDemoOptimizeRequest } from './demoConstants';
 import { DemoSidebar } from './DemoSidebar';
@@ -64,9 +64,10 @@ export function DemoSection() {
         toast.success('Optimizasyon tamamlandı.');
       }
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Hesaplama başarısız';
+      const { title, description } = toastOptimizerError(e);
+      const msg = description ? `${title} — ${description}` : title;
       setLastError(msg);
-      toast.error(msg);
+      toast.error(title, description ? { description } : undefined);
       setResult(null);
     } finally {
       setLoading(false);

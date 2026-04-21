@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useDisplayResult } from '@/contexts/ResultViewContext';
 import { getModeComparisonCsvUrl, getSyncComparisonCsvUrl } from '@/lib/api';
 import type { CuttingPlanItem } from '@/lib/api';
+import { formatTonDisplayTr } from '@/components/dashboard/orders/helpers';
 
 type RollSlice = {
   rollId: number;
@@ -56,14 +57,11 @@ function groupCuttingPlanByOrder(cuttingPlan: CuttingPlanItem[]): Map<number, Ro
 const fmt = (n: number, d = 2) =>
   n.toLocaleString('tr-TR', { minimumFractionDigits: d, maximumFractionDigits: d });
 
-const formatTon = (n: number) =>
-  n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
 /**
  * Aynı dilim için ton ile birlikte eşdeğer m² değerini kısa metin olarak döner.
  */
 function formatTonWithM2(tonnage: number, m2: number): string {
-  return `${formatTon(tonnage)} t · ${fmt(m2)} m²`;
+  return `${formatTonDisplayTr(tonnage)} t · ${fmt(m2)} m²`;
 }
 
 /**
@@ -435,7 +433,7 @@ function SurfaceLaneStackedRow({
             const ww = barDenominatorTon > 0 ? (s.tonnage / barDenominatorTon) * 100 : 0;
             const slot = laneSlotForSlice(s, slicesForOrder, partition);
             const short = slot ? bandShortLabelFromSlot(slot) : null;
-            const title = `${short ? `${short} · ` : ''}Rulo ${s.rollId} · Sipariş ${orderId}: ${formatTon(s.tonnage)} ton · ${fmt(s.m2)} m²`;
+            const title = `${short ? `${short} · ` : ''}Rulo ${s.rollId} · Sipariş ${orderId}: ${formatTonDisplayTr(s.tonnage)} ton · ${fmt(s.m2)} m²`;
             return (
               <div
                 key={s.rollId}
@@ -449,7 +447,7 @@ function SurfaceLaneStackedRow({
               >
                 {short ? <span className="text-[9px] opacity-95 leading-none">{short}</span> : null}
                 <span>R{s.rollId}</span>
-                <span className="opacity-90 font-semibold leading-none">{formatTon(s.tonnage)}t</span>
+                <span className="opacity-90 font-semibold leading-none">{formatTonDisplayTr(s.tonnage)}t</span>
                 <span className="opacity-85 text-[8px] sm:text-[9px] font-semibold leading-none">{fmt(s.m2)} m²</span>
               </div>
             );
@@ -596,7 +594,7 @@ export function SolverOrderRollBreakdown() {
                       )}
                     </td>
                     <td className="px-3 py-2.5 text-right text-gray-700">
-                      {typeof item.totalFire === 'number' ? formatTon(item.totalFire) : '—'}
+                      {typeof item.totalFire === 'number' ? formatTonDisplayTr(item.totalFire) : '—'}
                     </td>
                     <td className="px-3 py-2.5 text-right text-gray-700">
                       {typeof item.totalCost === 'number' ? fmt(item.totalCost) : '—'}
@@ -655,7 +653,7 @@ export function SolverOrderRollBreakdown() {
                   <tr key={`${item.syncLevel}-${item.status}`} className="hover:bg-gray-50/70">
                     <td className="px-3 py-2.5 font-semibold text-navy-custom">{syncLevelLabel(item.syncLevel)}</td>
                     <td className="px-3 py-2.5">{item.status}</td>
-                    <td className="px-3 py-2.5 text-right">{typeof item.totalFire === 'number' ? formatTon(item.totalFire) : '—'}</td>
+                    <td className="px-3 py-2.5 text-right">{typeof item.totalFire === 'number' ? formatTonDisplayTr(item.totalFire) : '—'}</td>
                     <td className="px-3 py-2.5 text-right">{typeof item.totalCost === 'number' ? fmt(item.totalCost) : '—'}</td>
                     <td className="px-3 py-2.5 text-right">{item.rollChangeCount ?? '—'}</td>
                     <td className="px-3 py-2.5 text-right">{item.synchronousChanges ?? '—'}</td>
@@ -671,17 +669,17 @@ export function SolverOrderRollBreakdown() {
       <div className="px-4 md:px-6 py-4 border-b border-gray-100 bg-emerald-50/30">
         <h4 className="text-sm font-bold text-navy-custom mb-1 flex items-center gap-2">
           <span className="material-symbols-outlined text-[20px] text-primary">timeline</span>
-          Hat olaylari ve operatör adim plani
+          Hat olayları ve operatör adım planı
         </h4>
         <p className="text-[10px] text-gray-600 mb-2 leading-snug">
           Her adımda üst ve alt hat aynı siparişi keser. Aksiyon özeti MILP sıralaması ve rulo geçmişiyle üretilir.
         </p>
         {lineTransitionsSummary ? (
           <div className="flex flex-wrap gap-3 text-[11px] text-gray-700 mb-2">
-            <span>Toplam degisim: <strong>{lineTransitionsSummary.totalChanges}</strong></span>
-            <span>Eszamanli: <strong>{lineTransitionsSummary.synchronousChanges}</strong></span>
-            <span>Bagimsiz: <strong>{lineTransitionsSummary.independentChanges}</strong></span>
-            <span>Adim: <strong>{lineTransitionsSummary.stepCount ?? lineSchedule.length}</strong></span>
+            <span>Toplam değişim: <strong>{lineTransitionsSummary.totalChanges}</strong></span>
+            <span>Eşzamanlı: <strong>{lineTransitionsSummary.synchronousChanges}</strong></span>
+            <span>Bağımsız: <strong>{lineTransitionsSummary.independentChanges}</strong></span>
+            <span>Adım: <strong>{lineTransitionsSummary.stepCount ?? lineSchedule.length}</strong></span>
           </div>
         ) : null}
         {lineSchedule.length > 0 ? (
@@ -689,12 +687,12 @@ export function SolverOrderRollBreakdown() {
             <table className="w-full text-xs text-left">
               <thead>
                 <tr className="uppercase tracking-wide text-gray-500 border-b border-gray-100">
-                  <th className="px-3 py-2 font-semibold whitespace-nowrap">Adim</th>
-                  <th className="px-3 py-2 font-semibold min-w-[140px]">Ust hat</th>
-                  <th className="px-3 py-2 font-semibold min-w-[140px]">Alt hat</th>
-                  <th className="px-3 py-2 font-semibold whitespace-nowrap">Aktif siparis</th>
+                  <th className="px-3 py-2 font-semibold whitespace-nowrap">Adım</th>
+                  <th className="px-3 py-2 font-semibold min-w-[140px]">Üst Hat</th>
+                  <th className="px-3 py-2 font-semibold min-w-[140px]">Alt Hat</th>
+                  <th className="px-3 py-2 font-semibold whitespace-nowrap">Aktif Sipariş</th>
                   <th className="px-3 py-2 font-semibold min-w-[180px]">Aksiyon</th>
-                  <th className="px-3 py-2 font-semibold">Kesilen parca</th>
+                  <th className="px-3 py-2 font-semibold">Kesilen Parça</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -736,7 +734,7 @@ export function SolverOrderRollBreakdown() {
       </div>
 
       <div className="px-4 md:px-6 py-3 border-b border-gray-100 bg-gray-50/60 flex items-center justify-between">
-        <h4 className="text-sm font-bold text-navy-custom">Siparis bazli kesim plani</h4>
+        <h4 className="text-sm font-bold text-navy-custom">Sipariş Bazlı Kesim Planı</h4>
         <button
           type="button"
           onClick={() => setShowOrderPlan((prev) => !prev)}
@@ -834,11 +832,11 @@ export function SolverOrderRollBreakdown() {
                               backgroundColor: rollColor(s.rollId),
                               minWidth: s.tonnage > 0.4 ? undefined : 48,
                             }}
-                            title={`Rulo ${s.rollId} · Sipariş ${orderId}: ${formatTon(s.tonnage)} ton · ${fmt(s.m2)} m²`}
+                            title={`Rulo ${s.rollId} · Sipariş ${orderId}: ${formatTonDisplayTr(s.tonnage)} ton · ${fmt(s.m2)} m²`}
                           >
                             <span className="text-center leading-tight z-[1] px-0.5 flex flex-col items-center">
                               <span>R{s.rollId}</span>
-                              <span className="opacity-90 leading-none">{formatTon(s.tonnage)}t</span>
+                              <span className="opacity-90 leading-none">{formatTonDisplayTr(s.tonnage)}t</span>
                               <span className="opacity-85 text-[8px] sm:text-[9px] leading-none">{fmt(s.m2)} m²</span>
                             </span>
                           </div>
@@ -900,7 +898,7 @@ export function SolverOrderRollBreakdown() {
                         Üst satır toplamı <strong>{formatTonWithM2(upperAgg.ton, upperAgg.m2)}</strong> · alt satır{' '}
                         <strong>{formatTonWithM2(lowerAgg.ton, lowerAgg.m2)}</strong> · yüzey başı hedef{' '}
                         <strong>{formatTonWithM2(perSurfaceTon, perSurfaceM2)}</strong> · satır farkı{' '}
-                        <strong>{formatTon(tonBalanceDiff)}</strong> t
+                        <strong>{formatTonDisplayTr(tonBalanceDiff)}</strong> t
                       </p>
                       <p className="text-[10px] text-slate-600 leading-snug">
                         Bu kayıtta üst/alt model alanları yok; satırlar yalnızca okuma için ton dengelemeli yerleştirme.
@@ -979,14 +977,14 @@ export function SolverOrderRollBreakdown() {
                             {modelSplit ? (
                               <>
                                 <td className="px-3 py-2.5 text-right text-gray-800">
-                                  {fmt(s.upperTonnage ?? 0)}
+                                  {formatTonDisplayTr(s.upperTonnage ?? 0)}
                                 </td>
                                 <td className="px-3 py-2.5 text-right text-gray-800">
-                                  {fmt(s.lowerTonnage ?? 0)}
+                                  {formatTonDisplayTr(s.lowerTonnage ?? 0)}
                                 </td>
                               </>
                             ) : null}
-                            <td className="px-3 py-2.5 text-right text-gray-800">{fmt(s.tonnage)} ton</td>
+                            <td className="px-3 py-2.5 text-right text-gray-800">{formatTonDisplayTr(s.tonnage)} ton</td>
                             <td className="px-3 py-2.5 text-right text-gray-700">{fmt(s.m2)}</td>
                             <td className="px-3 py-2.5 text-right text-gray-600">{s.panelCount}</td>
                           </tr>
@@ -1001,11 +999,11 @@ export function SolverOrderRollBreakdown() {
                         </td>
                         {modelSplit ? (
                           <>
-                            <td className="px-3 py-2 text-right">{formatTon(perSurfaceTon)}</td>
-                            <td className="px-3 py-2 text-right">{formatTon(perSurfaceTon)}</td>
+                            <td className="px-3 py-2 text-right">{formatTonDisplayTr(perSurfaceTon)}</td>
+                            <td className="px-3 py-2 text-right">{formatTonDisplayTr(perSurfaceTon)}</td>
                           </>
                         ) : null}
-                        <td className="px-3 py-2 text-right">{fmt(totalTon)} ton</td>
+                        <td className="px-3 py-2 text-right">{formatTonDisplayTr(totalTon)} ton</td>
                         <td className="px-3 py-2 text-right">{fmt(totalM2)}</td>
                         <td className="px-3 py-2 text-right">{totalPanels}</td>
                       </tr>
@@ -1018,7 +1016,7 @@ export function SolverOrderRollBreakdown() {
         })}
       </div>
       ) : (
-        <div className="px-4 md:px-6 py-4 text-xs text-gray-500">Siparis bazli kesim plani varsayilan olarak gizlidir.</div>
+        <div className="px-4 md:px-6 py-4 text-xs text-gray-500">Sipariş bazlı kesim planı varsayılan olarak gizlidir.</div>
       )}
 
       {emphasizeCoatingLanes && orderIds.length > 0 && (

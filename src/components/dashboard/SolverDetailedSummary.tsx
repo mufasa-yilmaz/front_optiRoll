@@ -1,11 +1,61 @@
 'use client';
 
 import { useDisplayResult } from '@/contexts/ResultViewContext';
+import type { SummaryResponse } from '@/lib/api';
+import { formatTonDisplayTr } from '@/components/dashboard/orders/helpers';
 
 const formatTL = (n: number) =>
   n.toLocaleString('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 const formatNum = (n: number, decimals = 2) =>
   n.toLocaleString('tr-TR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+
+/**
+ * Özet nesnesindeki fire / stok / kurulum TL kırılımını listeler.
+ */
+function CostBreakdownList(props: { summary: SummaryResponse }) {
+  const { summary } = props;
+  const cf = Number(summary.costFireLira ?? 0);
+  const ch = Number(summary.costStockLira ?? 0);
+  const chProd = Number(summary.costStockProductionLira ?? 0);
+  const chShelf = Number(summary.costStockShelfLira ?? 0);
+  const cA = Number(summary.costSetupLira ?? 0);
+  const cSeq = Number(summary.costSequencePenaltyLira ?? 0);
+  return (
+    <ul className="mt-3 space-y-2 text-sm text-gray-700">
+      <li className="flex justify-between gap-2">
+        <span className="text-gray-600">Fire (cf × ton)</span>
+        <span className="font-semibold tabular-nums">₺{formatTL(cf)}</span>
+      </li>
+      <li className="space-y-1.5 border-t border-gray-100 pt-2">
+        <p className="text-[11px] font-medium uppercase tracking-wide text-gray-500">
+          Stok tutma (h × ton)
+        </p>
+        <div className="flex justify-between gap-2">
+          <span className="text-gray-600">Üretim stoku (kalan stok)</span>
+          <span className="font-semibold tabular-nums">₺{formatTL(chProd)}</span>
+        </div>
+        <div className="flex justify-between gap-2">
+          <span className="text-gray-600">Rafta elde (açılmamış bobin)</span>
+          <span className="font-semibold tabular-nums">₺{formatTL(chShelf)}</span>
+        </div>
+        <div className="flex justify-between gap-2 text-xs text-gray-500">
+          <span>Toplam (h × envanter)</span>
+          <span className="font-semibold tabular-nums">₺{formatTL(ch)}</span>
+        </div>
+      </li>
+      <li className="flex justify-between gap-2">
+        <span className="text-gray-600">Rulo açılış (kurulum)</span>
+        <span className="font-semibold tabular-nums">₺{formatTL(cA)}</span>
+      </li>
+      {cSeq > 0 ? (
+        <li className="flex justify-between gap-2">
+          <span className="text-gray-600">Sıra cezası</span>
+          <span className="font-semibold tabular-nums">₺{formatTL(cSeq)}</span>
+        </li>
+      ) : null}
+    </ul>
+  );
+}
 
 /**
  * Detaylı optimizasyon özeti: verimlilik metrikleri, üretim istatistikleri, kesim planı tablosu.
@@ -25,16 +75,6 @@ export function SolverDetailedSummary() {
   const totalPanels = cuttingPlan.reduce((s, c) => s + c.panelCount, 0);
   const totalM2 = cuttingPlan.reduce((s, c) => s + c.m2, 0);
   const uniqueRolls = new Set(cuttingPlan.map((c) => c.rollId)).size;
-
-  const rollRows = rollStatus.map((r) => ({
-    rollId: r.rollId,
-    totalTonnage: r.totalTonnage,
-    used: r.used,
-    remaining: r.remaining,
-    fire: r.fire,
-    stock: r.stock,
-    ordersUsed: r.ordersUsed,
-  }));
 
   return (
     <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden flex flex-col">
@@ -99,6 +139,21 @@ export function SolverDetailedSummary() {
               </div>
             </div>
 
+            {lastResult?.summary ? (
+              <div className="bg-white p-5 rounded-lg border border-gray-100 shadow-sm">
+                <h3 className="text-sm font-semibold text-gray-500 mb-1 uppercase tracking-wide">
+                  Maliyet özeti
+                </h3>
+                <p className="text-xs text-gray-400 mb-1">
+                  Toplam:{' '}
+                  <span className="font-bold text-gray-800">
+                    ₺{formatTL(Number(lastResult.summary.totalCost ?? 0))}
+                  </span>
+                </p>
+                <CostBreakdownList summary={lastResult.summary} />
+              </div>
+            ) : null}
+
             <div className="bg-white p-5 rounded-lg border border-gray-100 shadow-sm">
               <h3 className="text-sm font-semibold text-gray-500 mb-4 uppercase tracking-wide">
                 Üretim İstatistikleri
@@ -155,13 +210,16 @@ export function SolverDetailedSummary() {
                     <th className="px-5 py-3">Rulo</th>
                     <th className="px-5 py-3 text-right">Kullanılan (ton)</th>
                     <th className="px-5 py-3 text-right">Fire (ton)</th>
-                    <th className="px-5 py-3 text-right">Stok (ton)</th>
+                    <th className="px-5 py-3 text-right">Üretim stok (ton)</th>
+                    <th className="px-5 py-3 text-right">Elde (ton)</th>
                     <th className="px-5 py-3 text-right">Sipariş</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {lastResult && rollRows.length > 0 ? (
-                    rollRows.map((row) => (
+                  {lastResult && rollStatus.length > 0 ? (
+                    rollStatus.map((row) => {
+                      const unused = row.unusedRollTonnage ?? 0;
+                      return (
                       <tr
                         key={row.rollId}
                         className="hover:bg-gray-50/50 transition-colors"
@@ -169,14 +227,17 @@ export function SolverDetailedSummary() {
                         <td className="px-5 py-3 font-medium text-navy-custom">
                           Rulo #{row.rollId}
                         </td>
-                        <td className="px-5 py-3 text-right text-gray-600">
-                          {formatNum(row.used)}
+                        <td className="px-5 py-3 text-right text-gray-600 tabular-nums">
+                          {formatTonDisplayTr(row.used)}
                         </td>
-                        <td className="px-5 py-3 text-right text-accent-red font-medium">
-                          {formatNum(row.fire)}
+                        <td className="px-5 py-3 text-right text-accent-red font-medium tabular-nums">
+                          {formatTonDisplayTr(row.fire)}
                         </td>
-                        <td className="px-5 py-3 text-right text-gray-600">
-                          {formatNum(row.stock)}
+                        <td className="px-5 py-3 text-right text-gray-600 tabular-nums">
+                          {formatTonDisplayTr(row.stock)}
+                        </td>
+                        <td className="px-5 py-3 text-right text-slate-600 tabular-nums">
+                          {formatTonDisplayTr(unused)}
                         </td>
                         <td className="px-5 py-3 text-right">
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">
@@ -184,10 +245,11 @@ export function SolverDetailedSummary() {
                           </span>
                         </td>
                       </tr>
-                    ))
+                    );
+                    })
                   ) : (
                     <tr>
-                      <td colSpan={5} className="px-5 py-8 text-center text-gray-400 text-sm">
+                      <td colSpan={6} className="px-5 py-8 text-center text-gray-400 text-sm">
                         Henüz optimizasyon sonucu yok
                       </td>
                     </tr>
@@ -195,22 +257,29 @@ export function SolverDetailedSummary() {
                 </tbody>
               </table>
             </div>
-            {lastResult && rollRows.length > 0 && (
-              <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 text-xs text-gray-500 text-center">
-                Toplam {rollRows.length} rulo kullanıldı
+            {lastResult && rollStatus.length > 0 && (
+              <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 text-xs text-gray-500 space-y-1.5">
+                <p className="text-center">
+                  Toplam {rollStatus.length} rulo tanımlı
+                  {typeof lastResult.summary?.totalUnusedInventoryTon === 'number' &&
+                  lastResult.summary.totalUnusedInventoryTon > 1e-6 ? (
+                    <>
+                      {' '}
+                      · Rafta kalan bobin toplamı:{' '}
+                      <span className="font-semibold text-slate-700 tabular-nums">
+                        {formatTonDisplayTr(lastResult.summary.totalUnusedInventoryTon)} t
+                      </span>
+                    </>
+                  ) : null}
+                </p>
+                <p className="text-[11px] leading-snug text-gray-400 text-center max-w-3xl mx-auto">
+                  Fire: kesim sonrası kalan 0,5 t ve altıysa tamamı fire. Üretim stok: 0,5 t üstü kalanın
+                  tamamı. Elde: hiç açılmamış bobin tonu.
+                </p>
               </div>
             )}
           </div>
         </div>
-      </div>
-
-      <div className="flex justify-end gap-3 mt-2 px-6 pb-6">
-        <button
-          type="button"
-          className="text-sm font-medium text-gray-500 hover:text-navy-custom transition px-4 py-2"
-        >
-          Gelişmiş Loglar
-        </button>
       </div>
     </div>
   );

@@ -1,7 +1,119 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
+import { formatTonDisplayTr, TON_DISPLAY_DECIMALS } from '@/components/dashboard/orders/helpers';
 import { DashboardCard } from './DashboardCard';
+
+/**
+ * Ton giriş alanından sayı üretir; virgül veya nokta ondalık ayırıcı olarak kabul edilir (örn. 12,5 veya 12.5).
+ */
+function parseLocaleDecimalInput(raw: string): number {
+  const s = raw.trim().replace(/\s/g, '');
+  if (s === '' || s === '-') return NaN;
+  const hasComma = s.includes(',');
+  const hasDot = s.includes('.');
+  if (hasComma && hasDot) {
+    const lastComma = s.lastIndexOf(',');
+    const lastDot = s.lastIndexOf('.');
+    if (lastComma > lastDot) {
+      return parseFloat(s.replace(/\./g, '').replace(',', '.'));
+    }
+    return parseFloat(s.replace(/,/g, ''));
+  }
+  if (hasComma && !hasDot) {
+    return parseFloat(s.replace(',', '.'));
+  }
+  return parseFloat(s);
+}
+
+/**
+ * Ton değerini giriş alanında göstermek için biçimlendirir (ondalık ayırıcı virgül, sabit basamak).
+ */
+function tonToInputDisplay(ton: number): string {
+  if (!Number.isFinite(ton) || ton === 0) return '';
+  return ton.toLocaleString('tr-TR', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: TON_DISPLAY_DECIMALS,
+    useGrouping: false,
+  });
+}
+
+type RollTonnageInputProps = {
+  /** Dışarıdan gelen ton (kaynak doğruluk) */
+  ton: number;
+  /** Geçerli sayı güncellendiğinde */
+  onCommit: (ton: number) => void;
+  className?: string;
+  /** true ise stok tonu salt okunur gösterilir (düzenleme yok). */
+  readOnly?: boolean;
+};
+
+/**
+ * Rulo tonajı için metin girişi: virgül veya nokta ile ondalık; yazarken yarım ifadeye izin verir.
+ */
+function RollTonnageInput({ ton, onCommit, className, readOnly = false }: RollTonnageInputProps) {
+  const [draft, setDraft] = useState<string | null>(null);
+
+  const display = draft !== null ? draft : tonToInputDisplay(ton);
+
+  if (readOnly) {
+    return (
+      <span
+        className={`${className ?? ''} block cursor-default border border-transparent bg-slate-50 py-1.5 px-2 text-sm text-slate-800 tabular-nums dark:bg-slate-800/60 dark:text-slate-100`}
+        title="Stok tonajı; bu ekranda değiştirilemez."
+      >
+        {formatTonDisplayTr(ton)}
+      </span>
+    );
+  }
+
+  const commitRaw = useCallback(
+    (raw: string) => {
+      const t = raw.trim();
+      if (t === '') {
+        onCommit(0);
+        setDraft(null);
+        return;
+      }
+      let n = parseLocaleDecimalInput(t);
+      if (Number.isNaN(n) && /[.,]$/.test(t)) {
+        n = parseLocaleDecimalInput(t.replace(/[.,]$/, ''));
+      }
+      if (!Number.isNaN(n)) {
+        onCommit(Math.max(0, n));
+      }
+      setDraft(null);
+    },
+    [onCommit],
+  );
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      autoComplete="off"
+      value={display}
+      onChange={(e) => {
+        const raw = e.target.value;
+        setDraft(raw);
+        const t = raw.trim();
+        if (t === '' || t === '-' || /[.,]\s*$/.test(t)) {
+          return;
+        }
+        const n = parseLocaleDecimalInput(raw);
+        if (!Number.isNaN(n)) {
+          onCommit(Math.max(0, n));
+        }
+      }}
+      onBlur={() => {
+        if (draft !== null) {
+          commitRaw(draft);
+        }
+      }}
+      className={className}
+    />
+  );
+}
 
 /**
  * Stok toplamı ile tahmini sipariş ihtiyacı arasındaki farkı ton olarak hesaplar.
@@ -42,6 +154,11 @@ export interface RollSettingsCardProps {
   blinkValidationKey?: number;
   /** Manuel "Rulo Ekle" butonunu göster (hazır set seçimi varsa false yapılabilir) */
   showManualAdd?: boolean;
+  /**
+   * true ise rulo tonları ve satır silme düzenlenemez (stok konfigürasyonu gibi kaynaklar için).
+   * Manuel / analiz test sayfasında false bırakın.
+   */
+  rollsReadOnly?: boolean;
 }
 
 /**
@@ -62,6 +179,7 @@ export function RollSettingsCard({
   hasRollsError,
   blinkValidationKey,
   showManualAdd = true,
+  rollsReadOnly = false,
 }: RollSettingsCardProps) {
   const total = rolls.reduce((s, r) => s + r, 0);
   const deltaTon = stockDeltaVersusOrderNeed(total, estimatedNeedTon);
@@ -95,7 +213,7 @@ export function RollSettingsCard({
       <span className="text-xs font-medium text-slate-400">
         {rolls.length} rulo
       </span>
-      {showStockSetSelect && (
+      {showStockSetSelect && !rollsReadOnly && (
         <select
           value={selectedStockSetId}
           onChange={(e) => onStockSetSelect(e.target.value)}
@@ -110,7 +228,7 @@ export function RollSettingsCard({
           ))}
         </select>
       )}
-      {showManualAdd && (
+      {!rollsReadOnly && showManualAdd && (
         <button
           type="button"
           onClick={addRoll}
@@ -130,11 +248,21 @@ export function RollSettingsCard({
           <span>Rulo Ağırlıkları (ton)</span>
           <span
             className="material-symbols-outlined text-[14px] text-slate-400 cursor-help"
-            title="Her rulo için toplam tonaj. Mevcut stok kapasitesini ve açılan rulo sayısını etkiler."
+            title={
+              rollsReadOnly
+                ? 'Tonajlar stok rulolarından gelir; bu sayfada değiştirilemez.'
+                : 'Her rulo için toplam tonaj. Mevcut stok kapasitesini ve açılan rulo sayısını etkiler.'
+            }
           >
             info
           </span>
         </label>
+        {rollsReadOnly && (
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Stok rulolarındaki miktarlar burada salt okunurdur. Ton değişikliği için stok ekranını veya analiz / manuel
+            konfigürasyon sayfasını kullanın.
+          </p>
+        )}
         <div
           ref={listRef}
           className={`space-y-2 max-h-48 overflow-y-auto ${
@@ -144,9 +272,11 @@ export function RollSettingsCard({
         >
           {rolls.length === 0 ? (
             <p className="text-sm text-slate-500 py-4 text-center">
-              {showManualAdd
-                ? 'Rulo eklemek için "Rulo Ekle" butonuna tıklayın'
-                : 'Yukarıdan bir hazır stok seti seçin'}
+              {rollsReadOnly
+                ? 'Stokta rulo yok veya henüz yüklenmedi.'
+                : showManualAdd
+                  ? 'Rulo eklemek için "Rulo Ekle" butonuna tıklayın'
+                  : 'Yukarıdan bir hazır stok seti seçin'}
             </p>
           ) : (
             rolls.map((ton, i) => (
@@ -155,26 +285,23 @@ export function RollSettingsCard({
                 className="flex items-center gap-2 py-1.5 border-b border-slate-100 last:border-0"
               >
                 <span className="text-xs text-slate-500 w-16">Rulo {i + 1}</span>
-                <input
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={ton}
-                  onChange={(e) => {
-                    const val = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
-                    updateRoll(i, Number.isNaN(val) ? 0 : Math.max(0, val));
-                  }}
+                <RollTonnageInput
+                  ton={ton}
+                  readOnly={rollsReadOnly}
+                  onCommit={(v) => updateRoll(i, v)}
                   className="flex-1 rounded border border-slate-300 py-1.5 px-2 text-sm"
                 />
                 <span className="text-xs text-slate-400">ton</span>
-                <button
-                  type="button"
-                  onClick={() => removeRoll(i)}
-                  className="p-1 text-slate-400 hover:text-accent-red rounded"
-                  title="Ruloyu kaldır"
-                >
-                  <span className="material-symbols-outlined text-[18px]">close</span>
-                </button>
+                {!rollsReadOnly && (
+                  <button
+                    type="button"
+                    onClick={() => removeRoll(i)}
+                    className="p-1 text-slate-400 hover:text-accent-red rounded"
+                    title="Ruloyu kaldır"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">close</span>
+                  </button>
+                )}
               </div>
             ))
           )}
@@ -186,7 +313,7 @@ export function RollSettingsCard({
             </p>
             <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
               Toplam stok:{' '}
-              <span className="font-bold text-primary">{Number(total).toFixed(2)} ton</span>
+              <span className="font-bold text-primary">{Number(total).toFixed(TON_DISPLAY_DECIMALS)} ton</span>
               <span className="text-slate-400 dark:text-slate-500">
                 {' '}
                 · {rolls.length} rulo
@@ -199,36 +326,36 @@ export function RollSettingsCard({
               <>
                 <p className="text-xs text-slate-600 dark:text-slate-300">
                   Tahmini sipariş ihtiyacı (ton):{' '}
-                  <span className="font-semibold tabular-nums">~{Number(estimatedNeedTon).toFixed(2)}</span>
+                  <span className="font-semibold tabular-nums">~{Number(estimatedNeedTon).toFixed(TON_DISPLAY_DECIMALS)}</span>
                   <span className="text-slate-400 dark:text-slate-500">
                     {' '}
                     — seçili sipariş m², çift yüzey (2×) ve malzeme varsayımlarıyla
                   </span>
                 </p>
-                {deltaTon > 0.01 ? (
+                {deltaTon > 0.001 ? (
                   <p className="flex items-start gap-2 rounded-md border border-emerald-200 bg-emerald-50/90 px-2.5 py-2 text-xs font-semibold text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/40 dark:text-emerald-100">
                     <span className="material-symbols-outlined text-[18px] shrink-0 text-emerald-600 dark:text-emerald-400">
                       trending_up
                     </span>
                     <span>
-                      Siparişe göre <span className="tabular-nums">+{deltaTon.toFixed(2)} ton</span> artan stok
+                      Siparişe göre <span className="tabular-nums">+{deltaTon.toFixed(TON_DISPLAY_DECIMALS)} ton</span> artan stok
                       (fazla kapasite).
                     </span>
                   </p>
-                ) : deltaTon < -0.01 ? (
+                ) : deltaTon < -0.001 ? (
                   <p className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50/90 px-2.5 py-2 text-xs font-semibold text-red-900 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-100">
                     <span className="material-symbols-outlined text-[18px] shrink-0 text-red-600 dark:text-red-400">
                       trending_down
                     </span>
                     <span>
-                      Siparişe göre <span className="tabular-nums">{Math.abs(deltaTon).toFixed(2)} ton</span> eksik
+                      Siparişe göre <span className="tabular-nums">{Math.abs(deltaTon).toFixed(TON_DISPLAY_DECIMALS)} ton</span> eksik
                       stok (ihtiyaç, mevcut stoktan büyük).
                     </span>
                   </p>
                 ) : (
                   <p className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2.5 py-2 text-xs font-medium text-slate-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200">
                     <span className="material-symbols-outlined text-[18px] text-slate-500">balance</span>
-                    Siparişe göre stok ile ihtiyaç yaklaşık denge (~±0,01 ton).
+                    Siparişe göre stok ile ihtiyaç yaklaşık denge (~±0,001 ton).
                   </p>
                 )}
               </>

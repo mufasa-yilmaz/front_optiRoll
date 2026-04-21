@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useDisplayResult } from '@/contexts/ResultViewContext';
+import { formatTonDisplayTr } from '@/components/dashboard/orders/helpers';
 
 const ORDER_COLORS = [
   '#153b6a',
@@ -205,7 +206,7 @@ export function SolverBreakdownTabs() {
         </div>
         <div className="flex items-start justify-between rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Verimlilik</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Malzeme Kullanımı</p>
             <h3 className="mt-1 text-2xl font-bold text-slate-800">%{formatNumber(efficiencyPct, 1)}</h3>
           </div>
           <span className="material-symbols-outlined rounded-lg bg-green-50 p-2 text-green-600">trending_up</span>
@@ -273,7 +274,7 @@ export function SolverBreakdownTabs() {
                   <div className="w-28 shrink-0 pt-1 text-sm font-medium text-gray-700">
                     Rulo #{roll.rollId}
                     <div className="mt-1 text-xs font-medium text-slate-400">
-                      {formatNumber(roll.totalTonnage)} ton kapasite
+                      {formatTonDisplayTr(roll.totalTonnage)} ton kapasite
                     </div>
                   </div>
                   <div className="flex-1">
@@ -301,7 +302,7 @@ export function SolverBreakdownTabs() {
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-slate-300">Atanan:</span>
-                                <span>{formatNumber(segment.tonnage)} ton</span>
+                                <span>{formatTonDisplayTr(segment.tonnage)} ton</span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-slate-300">Kullanım:</span>
@@ -326,7 +327,8 @@ export function SolverBreakdownTabs() {
                     </div>
                     <div className="mt-1 flex items-center justify-between text-xs text-slate-500">
                       <span>
-                        Kullanılan: {formatNumber(roll.used)} ton · Stok: {formatNumber(roll.stock)} ton · Fire: {formatNumber(roll.fire)} ton
+                        Kullanılan: {formatTonDisplayTr(roll.used)} ton · Stok: {formatTonDisplayTr(roll.stock)} ton · Fire:{' '}
+                        {formatTonDisplayTr(roll.fire)} ton
                       </span>
                       <span className="font-bold uppercase text-slate-500">
                         %{formatNumber(roll.totalTonnage > 0 ? (roll.used / roll.totalTonnage) * 100 : 0, 1)} kullanıldı
@@ -337,7 +339,7 @@ export function SolverBreakdownTabs() {
               ))}
             </div>
             <div className="border-t border-slate-100 pt-4 text-xs text-slate-500">
-              Ölçek referansı: en büyük rulo {formatNumber(maxTon)} ton
+              Ölçek referansı: en büyük rulo {formatTonDisplayTr(maxTon)} ton
             </div>
           </div>
           <div
@@ -422,7 +424,7 @@ export function SolverBreakdownTabs() {
                                           </div>
                                           <div className="flex justify-between">
                                             <span className="text-slate-300">Atanan:</span>
-                                            <span>{formatNumber(hoverInfo.assignedTon)} ton</span>
+                                            <span>{formatTonDisplayTr(hoverInfo.assignedTon)} ton</span>
                                           </div>
                                           <div className="flex justify-between">
                                             <span className="text-slate-300">Kullanım:</span>
@@ -430,7 +432,9 @@ export function SolverBreakdownTabs() {
                                           </div>
                                           <div className="flex justify-between">
                                             <span className="text-slate-300">Stok / Fire:</span>
-                                            <span>{formatNumber(hoverInfo.stockTon)} / {formatNumber(hoverInfo.fireTon)} ton</span>
+                                            <span>
+                                              {formatTonDisplayTr(hoverInfo.stockTon)} / {formatTonDisplayTr(hoverInfo.fireTon)} ton
+                                            </span>
                                           </div>
                                         </div>
                                       </div>

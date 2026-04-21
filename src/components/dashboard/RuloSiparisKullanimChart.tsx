@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { useDisplayResult } from '@/contexts/ResultViewContext';
 import type { LineScheduleStepItem, RollStatusItem } from '@/lib/api';
+import { formatTonDisplayTr } from '@/components/dashboard/orders/helpers';
 
 /** Sipariş bazlı segment rengi - proje paleti */
 const SIPARIS_RENKLERI = [
@@ -17,9 +18,6 @@ const SIPARIS_RENKLERI = [
   '#f59e0b', // amber
   '#6366f1', // indigo
 ];
-
-const formatTon = (n: number) =>
-  n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const fmtM2 = (n: number) =>
   n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -49,6 +47,53 @@ function tonnageCutForRollOnStep(step: LineScheduleStepItem, rollId: number | nu
   if (rollId == null) return 0;
   const cut = step.cuts.find((c) => c.rollId === rollId);
   return cut?.tonnage ?? 0;
+}
+
+/**
+ * Bu adımda verilen banddaki rulo için, çizelgede sonraki kesim yoksa true döner (rulo sonu artığı).
+ */
+function isLastRollCutInSchedule(
+  schedule: LineScheduleStepItem[],
+  stepIdx: number,
+  rollId: number | null,
+  band: 'upper' | 'lower',
+): boolean {
+  if (rollId == null) return false;
+  const step = schedule[stepIdx];
+  const bandId = band === 'upper' ? step.upperRollId : step.lowerRollId;
+  if (bandId !== rollId) return false;
+  if (tonnageCutForRollOnStep(step, rollId) <= 1e-6) return false;
+  for (let k = stepIdx + 1; k < schedule.length; k += 1) {
+    if (tonnageCutForRollOnStep(schedule[k], rollId) > 1e-6) return false;
+  }
+  return true;
+}
+
+/**
+ * Gri segment metni: ara adımlarda kalan ton; son kesimde rollStatus ile stok/fire etiketi.
+ */
+function graySegmentLabel(
+  remainingAfterTon: number,
+  endOfRollTail: { fire: number; stock: number } | null | undefined,
+): { main: string; title: string } {
+  if (!endOfRollTail) {
+    return {
+      main: `Kalan ${formatTonDisplayTr(remainingAfterTon)} t`,
+      title: `Kalan (bu adım sonrası): ${formatTonDisplayTr(remainingAfterTon)} t`,
+    };
+  }
+  const parts: string[] = [];
+  if (endOfRollTail.stock > 1e-4) {
+    parts.push(`Stok ${formatTonDisplayTr(endOfRollTail.stock)} t`);
+  }
+  if (endOfRollTail.fire > 1e-4) {
+    parts.push(`Fire ${formatTonDisplayTr(endOfRollTail.fire)} t`);
+  }
+  if (parts.length === 0 && remainingAfterTon > 1e-4) {
+    parts.push(`Fire ${formatTonDisplayTr(remainingAfterTon)} t`);
+  }
+  const main = parts.length > 0 ? parts.join(' · ') : '—';
+  return { main, title: `Rulo sonu — ${main}` };
 }
 
 /**
@@ -85,6 +130,8 @@ type ScheduleLaneProps = {
    * Aynı tonaj kesimi üst/alt ve adımlar arası aynı mavi genişliğe denk gelir.
    */
   chartScaleTon: number;
+  /** Bu kesimden sonra bu ruloda başka kesim yoksa stok/fire (gri alanda "Kalan" yerine). */
+  endOfRollTail?: { fire: number; stock: number } | null;
 };
 
 /**
@@ -101,6 +148,7 @@ function ScheduleLaneBar({
   initialRollTon,
   remainingBeforeStepTon,
   chartScaleTon,
+  endOfRollTail = null,
 }: ScheduleLaneProps) {
   const M = Math.max(chartScaleTon, 1e-9);
   const col = orderColor(orderId);
@@ -108,6 +156,7 @@ function ScheduleLaneBar({
   /** Bu adım öncesi kalan, max ruloya göre — rulonun “fiziksel” uzunluğu adımlarla kısalır. */
   const trackPct = Math.min(100, (remBefore / M) * 100);
   const remainingAfterTon = Math.max(0, remBefore - tonnage);
+  const grayLabel = graySegmentLabel(remainingAfterTon, endOfRollTail);
   const hasRoll = rollId != null && initialRollTon > 1e-6;
   /** Bu adımda kesilen pay, adım öncesi kalan içinde (mavi / gri). */
   const usedFracOfRoll =
@@ -141,20 +190,20 @@ function ScheduleLaneBar({
                     minWidth:
                       usedFracOfRoll > 0 && usedFracOfRoll * 100 < 18 ? '4.5rem' : undefined,
                   }}
-                  title={`Sipariş ${orderId}: ${formatTon(tonnage)} t · ${fmtM2(m2)} m² · Adım öncesi kalan ${formatTon(remBefore)} t`}
+                  title={`Sipariş ${orderId}: ${formatTonDisplayTr(tonnage)} t · ${fmtM2(m2)} m² · Adım öncesi kalan ${formatTonDisplayTr(remBefore)} t`}
                 >
                   <span className="truncate text-center leading-tight">
-                    S{orderId} ({formatTon(tonnage)}t)
+                    S{orderId} ({formatTonDisplayTr(tonnage)}t)
                   </span>
                 </div>
                 <div
-                  className="h-full flex-1 min-w-0 flex items-center justify-center bg-gray-200/80 text-slate-600 text-[10px] sm:text-[11px] font-semibold px-1 overflow-hidden"
-                  title={`Kalan (bu adım sonrası): ${formatTon(remainingAfterTon)} t`}
+                  className={`h-full flex-1 min-w-0 flex items-center justify-center bg-gray-200/80 text-[10px] sm:text-[11px] font-semibold px-1 overflow-hidden ${
+                    endOfRollTail ? 'text-red-700' : 'text-slate-600'
+                  }`}
+                  title={grayLabel.title}
                 >
                   {remainingAfterTon > 1e-4 ? (
-                    <span className="truncate text-center leading-tight">
-                      Kalan {formatTon(remainingAfterTon)} t
-                    </span>
+                    <span className="truncate text-center leading-tight">{grayLabel.main}</span>
                   ) : (
                     <span className="text-[10px] text-slate-400">—</span>
                   )}
@@ -163,15 +212,15 @@ function ScheduleLaneBar({
             ) : (
               <div
                 className="h-full flex-1 flex items-center justify-center bg-gray-200/80 text-slate-600 text-[10px] sm:text-[11px] font-semibold px-2"
-                title={`Kalan: ${formatTon(remBefore)} t`}
+                title={`Kalan: ${formatTonDisplayTr(remBefore)} t`}
               >
-                Kalan {formatTon(remBefore)} t
+                Kalan {formatTonDisplayTr(remBefore)} t
               </div>
             )}
           </div>
         </div>
         <div className="text-[10px] text-gray-500">
-          Adım ton: {formatTon(tonnage)} t · {fmtM2(m2)} m²
+          Adım ton: {formatTonDisplayTr(tonnage)} t · {fmtM2(m2)} m²
         </div>
       </div>
     </div>
@@ -231,7 +280,7 @@ export function RuloSiparisKullanimChart() {
         </h2>
         <p className="text-sm text-white/80 mt-1">
           {hasSchedule
-            ? `Hat adımları (üst / alt); ölçek: en büyük rulo ${formatTon(maxTonaj)} t — aynı kesim tonajı aynı mavi genişlikte; rulolar önceki adımlar düşülerek kısalır`
+            ? `Hat adımları (üst / alt); ölçek: en büyük rulo ${formatTonDisplayTr(maxTonaj)} t — aynı kesim tonajı aynı mavi genişlikte; rulolar önceki adımlar düşülerek kısalır`
             : 'Her rulonun sipariş bazında dağılımı (ton)'}
         </p>
       </div>
@@ -256,6 +305,22 @@ export function RuloSiparisKullanimChart() {
               const lTotal = lId != null ? rollTotals.get(lId) ?? maxTonaj : maxTonaj;
               const uRemBefore = remainingTonBeforeStep(schedule, stepIdx, uId, rollTotals, maxTonaj);
               const lRemBefore = remainingTonBeforeStep(schedule, stepIdx, lId, rollTotals, maxTonaj);
+              const uRemAfter = Math.max(0, uRemBefore - uTon);
+              const lRemAfter = Math.max(0, lRemBefore - lTon);
+              const uTail =
+                isLastRollCutInSchedule(schedule, stepIdx, uId, 'upper') && uTon > 1e-6
+                  ? (() => {
+                      const rs = rollStatus.find((r) => r.rollId === uId);
+                      return rs ? { fire: rs.fire, stock: rs.stock } : { fire: uRemAfter, stock: 0 };
+                    })()
+                  : null;
+              const lTail =
+                isLastRollCutInSchedule(schedule, stepIdx, lId, 'lower') && lTon > 1e-6
+                  ? (() => {
+                      const rs = rollStatus.find((r) => r.rollId === lId);
+                      return rs ? { fire: rs.fire, stock: rs.stock } : { fire: lRemAfter, stock: 0 };
+                    })()
+                  : null;
 
               return (
                 <div
@@ -282,6 +347,7 @@ export function RuloSiparisKullanimChart() {
                       initialRollTon={uTotal}
                       remainingBeforeStepTon={uRemBefore}
                       chartScaleTon={maxTonaj}
+                      endOfRollTail={uTail}
                     />
                     <ScheduleLaneBar
                       bandLabel="Alt"
@@ -292,6 +358,7 @@ export function RuloSiparisKullanimChart() {
                       initialRollTon={lTotal}
                       remainingBeforeStepTon={lRemBefore}
                       chartScaleTon={maxTonaj}
+                      endOfRollTail={lTail}
                     />
                   </div>
                 </div>
@@ -325,10 +392,10 @@ export function RuloSiparisKullanimChart() {
                               backgroundColor: SIPARIS_RENKLERI[(seg.orderId - 1) % SIPARIS_RENKLERI.length],
                               minWidth: seg.tonnage > 0.5 ? undefined : 60,
                             }}
-                            title={`Sipariş ${seg.orderId}: ${formatTon(seg.tonnage)} ton`}
+                            title={`Sipariş ${seg.orderId}: ${formatTonDisplayTr(seg.tonnage)} ton`}
                           >
                             {seg.tonnage > 0.5 ? (
-                              <>S{seg.orderId} ({formatTon(seg.tonnage)}t)</>
+                              <>S{seg.orderId} ({formatTonDisplayTr(seg.tonnage)}t)</>
                             ) : (
                               <>S{seg.orderId}</>
                             )}
@@ -342,7 +409,7 @@ export function RuloSiparisKullanimChart() {
                               minWidth: roll.stock > 0.5 ? undefined : 50,
                             }}
                           >
-                            Stok ({formatTon(roll.stock)}t)
+                            Stok ({formatTonDisplayTr(roll.stock)}t)
                           </div>
                         )}
                         {roll.fire > 0.0001 && (
@@ -353,20 +420,20 @@ export function RuloSiparisKullanimChart() {
                               minWidth: roll.fire > 0.5 ? undefined : 50,
                             }}
                           >
-                            Fire ({formatTon(roll.fire)}t)
+                            Fire ({formatTonDisplayTr(roll.fire)}t)
                           </div>
                         )}
                       </>
                     )}
                   </div>
                   <div className="text-xs text-gray-500">
-                    Toplam: {formatTon(roll.totalTonnage)} ton
+                    Toplam: {formatTonDisplayTr(roll.totalTonnage)} ton
                     {!roll.isUnused && (
                       <>
                         {' '}
-                        · Kullanılan: {formatTon(roll.used)} ton
-                        {roll.stock > 0 && ` · Stok: ${formatTon(roll.stock)} ton`}
-                        {roll.fire > 0 && ` · Fire: ${formatTon(roll.fire)} ton`}
+                        · Kullanılan: {formatTonDisplayTr(roll.used)} ton
+                        {roll.stock > 0 && ` · Stok: ${formatTonDisplayTr(roll.stock)} ton`}
+                        {roll.fire > 0 && ` · Fire: ${formatTonDisplayTr(roll.fire)} ton`}
                       </>
                     )}
                   </div>
