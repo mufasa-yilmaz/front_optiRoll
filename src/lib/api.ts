@@ -85,9 +85,28 @@ export interface SummaryResponse {
   totalCost: number;
   totalFire: number;
   totalStock: number;
+  /** Hiç açılmamış ruloların toplam tonu (rafta kalan bobin). */
+  totalUnusedInventoryTon?: number;
   openedRolls: number;
   sequencePenalty?: number;
   interleavingViolationCount?: number;
+  /** Kesim planı içi üst/alt dilim geçişleri (sipariş bazlı) */
+  rollChangeCount?: number;
+  surfaceSyncViolations?: number;
+  /** Rapor fire tonu × cf (çözücü yeniden sınıflandırması sonrası). */
+  costFireLira?: number;
+  /** h × (üretim stoğu + elde/rafta ton); kırılım için costStockProductionLira + costStockShelfLira. */
+  costStockLira?: number;
+  /** Üretim stoku (kalan stok) tonu + rafta elde ton (h ile çarpılacak toplam fiziksel envanter). */
+  totalStockHoldingTon?: number;
+  /** Sadece üretim stoku tonu × h. */
+  costStockProductionLira?: number;
+  /** Sadece rafta elde ton × h. */
+  costStockShelfLira?: number;
+  /** Açılan rulo × kurulum maliyeti. */
+  costSetupLira?: number;
+  /** Sıra ihlali cezası TL (varsa). */
+  costSequencePenaltyLira?: number;
 }
 
 export interface SequenceViolationItem {
@@ -120,6 +139,8 @@ export interface RollStatusItem {
   fire: number;
   stock: number;
   ordersUsed: number;
+  /** Açılmamış ruloda rafta kalan bobin tonu; açılmışta 0. */
+  unusedRollTonnage?: number;
 }
 
 /** Mod bazlı karşılaştırma satırı: fire/maliyet/değişim ve eşzamanlılık özeti. */
@@ -371,6 +392,61 @@ function getErrorMessage(err: { detail?: string | string[] }, fallback: string):
   return fallback;
 }
 
+/** Optimizasyon 400 yanıtında yapılandırılmış detail (message + hints + failureCode). */
+export class OptimizerRequestError extends Error {
+  readonly hints: string[];
+
+  readonly failureCode?: string;
+
+  constructor(
+    message: string,
+    options?: { hints?: string[]; failureCode?: string },
+  ) {
+    super(message);
+    this.name = 'OptimizerRequestError';
+    this.hints = options?.hints ?? [];
+    this.failureCode = options?.failureCode;
+  }
+}
+
+/**
+ * Optimizasyon hatasını toast için tek metin veya description ile kullanıma döker.
+ */
+export function toastOptimizerError(err: unknown): { title: string; description?: string } {
+  if (err instanceof OptimizerRequestError) {
+    return {
+      title: err.message,
+      description:
+        err.hints.length > 0 ? err.hints.join(' · ') : undefined,
+    };
+  }
+  if (err instanceof Error) {
+    return { title: err.message };
+  }
+  return { title: 'Optimizasyon hatası' };
+}
+
+/**
+ * /api/optimize hata JSON gövdesini Error nesnesine çevirir (yapılandırılmış detail destekler).
+ */
+function parseOptimizeErrorResponse(json: unknown): Error {
+  const err = json as { detail?: unknown };
+  const d = err?.detail;
+  if (
+    d &&
+    typeof d === 'object' &&
+    !Array.isArray(d) &&
+    'message' in (d as object)
+  ) {
+    const o = d as { message: string; hints?: string[]; failureCode?: string };
+    return new OptimizerRequestError(o.message, {
+      hints: o.hints,
+      failureCode: o.failureCode,
+    });
+  }
+  return new Error(getErrorMessage(err as { detail?: string | string[] }, 'Optimizasyon hatası'));
+}
+
 export async function optimize(data: OptimizeRequest): Promise<OptimizeResponse> {
   const url = `${API_BASE}/api/optimize`;
   if (!API_BASE) {
@@ -388,7 +464,7 @@ export async function optimize(data: OptimizeRequest): Promise<OptimizeResponse>
     clearTimeout(timeoutId);
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: res.statusText }));
-      throw new Error(getErrorMessage(err, 'Optimizasyon hatası'));
+      throw parseOptimizeErrorResponse(err);
     }
     return res.json();
   } catch (e) {
