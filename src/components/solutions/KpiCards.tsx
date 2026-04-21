@@ -1,4 +1,5 @@
 import type { SummaryResponse } from '@/lib/api';
+import { formatTonDisplayTr } from '@/components/dashboard/orders/helpers';
 
 export interface KpiCardsProps {
   /** API özeti; yoksa örnek placeholder değerler */
@@ -29,12 +30,12 @@ export function KpiCards({ summary, loading, status }: KpiCardsProps) {
         },
         {
           label: 'Fire (ton)',
-          value: Number(summary.totalFire).toFixed(3),
+          value: formatTonDisplayTr(Number(summary.totalFire)),
           variant: Number(summary.totalFire) > 0.01 ? ('warning' as const) : ('default' as const),
         },
         {
           label: 'Stok (ton)',
-          value: Number(summary.totalStock).toFixed(3),
+          value: formatTonDisplayTr(Number(summary.totalStock)),
           variant: 'default' as const,
         },
         {
@@ -86,10 +87,61 @@ export function KpiCards({ summary, loading, status }: KpiCardsProps) {
           </div>
         ))}
       </div>
-      {isLive && !loading && (seqPen > 0 || viol > 0) && (
+      {isLive && !loading && summary && (
+        <div className="text-xs text-slate-700 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 space-y-1">
+          <p className="font-semibold text-slate-800">Maliyet kırılımı (TL)</p>
+          <p>
+            Fire (cf×t):{' '}
+            <strong>
+              {Number(summary.costFireLira ?? 0).toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺
+            </strong>
+            {' · '}
+            Üretim stoku (h):{' '}
+            <strong>
+              {Number(summary.costStockProductionLira ?? 0).toLocaleString('tr-TR', {
+                maximumFractionDigits: 0,
+              })}{' '}
+              ₺
+            </strong>
+            {' · '}
+            Elde (h):{' '}
+            <strong>
+              {Number(summary.costStockShelfLira ?? 0).toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺
+            </strong>
+            {' · '}
+            Stok toplamı:{' '}
+            <strong>
+              {Number(summary.costStockLira ?? 0).toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺
+            </strong>
+            {' · '}
+            Kurulum:{' '}
+            <strong>
+              {Number(summary.costSetupLira ?? 0).toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺
+            </strong>
+            {Number(summary.costSequencePenaltyLira ?? 0) > 0 ? (
+              <>
+                {' · '}
+                Sıra cezası:{' '}
+                <strong>
+                  {Number(summary.costSequencePenaltyLira).toLocaleString('tr-TR', {
+                    maximumFractionDigits: 0,
+                  })}{' '}
+                  ₺
+                </strong>
+              </>
+            ) : null}
+          </p>
+        </div>
+      )}
+      {isLive && !loading && viol > 0 && (
         <p className="text-xs text-slate-600 bg-slate-100 rounded-lg px-3 py-2">
-          Sıra cezası: <strong>{seqPen.toFixed(2)}</strong> · Araya sipariş ihlali:{' '}
-          <strong>{viol}</strong>
+          Araya sipariş ihlali kayıt sayısı: <strong>{viol}</strong>
+          {seqPen > 0 && Number(summary?.costSequencePenaltyLira ?? 0) <= 0 ? (
+            <>
+              {' '}
+              · Ceza birimi (ham): <strong>{seqPen.toFixed(2)}</strong>
+            </>
+          ) : null}
         </p>
       )}
       {!isLive && !loading && (

@@ -1,5 +1,7 @@
 'use client';
 
+import { estimateOrderDemandTon, formatTonDisplayTr } from '@/components/dashboard/orders/helpers';
+
 /** Sipariş satırı veri tipi */
 export type OrderRow = {
   id: string;
@@ -72,7 +74,6 @@ export function OrdersSummaryCard({
   const formatNumber = (n: number, decimals = 2) =>
     n.toLocaleString('tr-TR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 
-  const densityGcm3 = density / 1000;
   const showOrderSetSelect = orderSets.length > 0 && onOrderSetSelect;
 
   /** Yeni sipariş satırı ekler; m², genişlik ve kesim uzunluğu 0 — kullanıcı girecek. */
@@ -219,7 +220,7 @@ export function OrdersSummaryCard({
                   <span>Talep (ton)</span>
                   <span
                     className="material-symbols-outlined text-[14px] text-slate-400 cursor-help"
-                    title="Metrekare talebi, kalınlık ve yoğunluk kullanılarak hesaplanan tahmini tonaj."
+                    title="Tam sayı panel yuvarlaması ve çift yüzey talebi (×2); kalınlık ve yoğunluk ile — optimizasyon backend’i ile aynı mantık."
                   >
                     info
                   </span>
@@ -245,12 +246,22 @@ export function OrdersSummaryCard({
               </tr>
             ) : (
               orders.map((order, i) => {
-                const pw = order.panelWidth ?? 0;
-                const pl = order.panelLength ?? 0;
-                const product = pw * pl;
-                const panelCount = product > 0 ? Math.max(0, Math.round(order.m2 / product)) : 0;
-                const effectiveM2 = panelCount * product;
-                const demandTon = effectiveM2 * (thickness / 1000) * densityGcm3;
+                /** Siparişte hazır ton varsa (kayıt/API) onu kullan; yoksa backend ile aynı formül. */
+                const computedTon = estimateOrderDemandTon(
+                  {
+                    m2: order.m2,
+                    panel_width: order.panelWidth,
+                    panel_length: order.panelLength ?? 1,
+                  },
+                  thickness,
+                  density,
+                );
+                const demandTon =
+                  order.demandTon != null &&
+                  Number.isFinite(order.demandTon) &&
+                  order.demandTon > 0
+                    ? order.demandTon
+                    : computedTon;
                 return (
                   <tr
                     key={order.id}
@@ -312,7 +323,7 @@ export function OrdersSummaryCard({
                       )}
                     </td>
                     <td className="px-6 py-3 whitespace-nowrap text-sm text-slate-600 text-right font-mono">
-                      {formatNumber(demandTon)}
+                      {formatTonDisplayTr(demandTon)}
                     </td>
                     {editable && (
                       <td className="px-4 py-3 text-right">

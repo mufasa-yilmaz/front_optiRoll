@@ -14,19 +14,26 @@ import {
 } from '@/lib/api';
 import {
   getRunStatusLabelTr,
+  getRunSummaryCostFireLira,
+  getRunSummaryCostSequencePenaltyLira,
+  getRunSummaryCostSetupLira,
+  getRunSummaryCostStockLira,
+  getRunSummaryCostStockProductionLira,
+  getRunSummaryCostStockShelfLira,
   getRunSummaryOpenedRolls,
   getRunSummaryTotalCost,
   getRunSummaryTotalFire,
   getRunSummaryTotalStock,
 } from '@/lib/runSummaryFields';
 import { DashboardOverviewHeader } from '@/components/dashboard/DashboardOverviewHeader';
-import { DEFAULT_ORDER_TABLE_MATERIAL, sumOrdersEstimatedDemandTon } from '@/components/dashboard/orders/helpers';
+import {
+  DEFAULT_ORDER_TABLE_MATERIAL,
+  formatTonDisplayTr,
+  sumOrdersEstimatedDemandTon,
+} from '@/components/dashboard/orders/helpers';
 
 const formatTL = (n: number) =>
   n.toLocaleString('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-
-const formatTon = (n: number) =>
-  n.toLocaleString('tr-TR', { minimumFractionDigits: 1, maximumFractionDigits: 2 });
 
 /**
  * Tarih ISO string'ini kısa Türkçe metne çevirir.
@@ -73,7 +80,7 @@ function LiveOrdersSummaryCard(props: {
           <p className="mt-1 text-sm text-gray-500">Aktif (beklemede / üretimde): {activeCount.toLocaleString('tr-TR')}</p>
           <p className="mt-2 text-xs text-gray-400">
             Toplam talep ~{totalM2.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} m² · Tahmini{' '}
-            {formatTon(estimatedTon)} t
+            {formatTonDisplayTr(estimatedTon)} t
           </p>
         </div>
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-primary shadow-sm">
@@ -101,7 +108,7 @@ function LiveStockSummaryCard(props: { rollCount: number; totalTon: number }) {
           <h3 className="text-sm font-bold uppercase tracking-wider text-primary">Stok</h3>
           <p className="mt-3 text-3xl font-bold text-[#0f141a]">{rollCount.toLocaleString('tr-TR')}</p>
           <p className="mt-1 text-sm text-gray-500">Toplam tonaj</p>
-          <p className="mt-2 text-2xl font-bold text-primary">{formatTon(totalTon)} ton</p>
+          <p className="mt-2 text-2xl font-bold text-primary">{formatTonDisplayTr(totalTon)} t</p>
         </div>
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-accent-green shadow-sm">
           <span className="material-symbols-outlined text-[22px]">inventory_2</span>
@@ -118,9 +125,27 @@ function LiveStockSummaryCard(props: { rollCount: number; totalTon: number }) {
   );
 }
 
-/** Son optimizasyon çalıştırmasından gelen toplam maliyet kartı. */
-function LatestRunCostCard(props: { totalCost: number; hasRun: boolean }) {
-  const { totalCost, hasRun } = props;
+/** Son çalıştırmada toplam maliyet kartı; fire / stok / kurulum TL kırılımını gösterir. */
+function LatestRunCostCard(props: {
+  totalCost: number;
+  hasRun: boolean;
+  costFire: number;
+  costStock: number;
+  costStockProduction: number;
+  costStockShelf: number;
+  costSetup: number;
+  costSequence: number;
+}) {
+  const {
+    totalCost,
+    hasRun,
+    costFire,
+    costStock,
+    costStockProduction,
+    costStockShelf,
+    costSetup,
+    costSequence,
+  } = props;
   return (
     <div className="relative flex flex-col justify-between overflow-hidden rounded-xl border border-gray-100 bg-white p-6 shadow-sm transition-all hover:shadow-md lg:col-span-1">
       <div className="relative z-10">
@@ -134,7 +159,39 @@ function LatestRunCostCard(props: { totalCost: number; hasRun: boolean }) {
           <span className="block text-4xl font-bold tracking-tight text-primary lg:text-5xl">
             {hasRun ? `₺${formatTL(totalCost)}` : '—'}
           </span>
-          <p className="mt-1 text-sm font-medium text-gray-400">Fire + stok + kurulum (özet)</p>
+          <p className="mt-1 text-sm font-medium text-gray-400">
+            cf × fire + h × (üretim stoku + elde) + kurulum (+ sıra cezası)
+          </p>
+          {hasRun ? (
+            <ul className="mt-3 space-y-1 text-xs text-gray-600">
+              <li className="flex justify-between gap-2">
+                <span>Fire maliyeti</span>
+                <span className="font-semibold tabular-nums">₺{formatTL(costFire)}</span>
+              </li>
+              <li className="flex justify-between gap-2">
+                <span>Stok tutma — üretim stoku</span>
+                <span className="font-semibold tabular-nums">₺{formatTL(costStockProduction)}</span>
+              </li>
+              <li className="flex justify-between gap-2">
+                <span>Stok tutma — rafta elde</span>
+                <span className="font-semibold tabular-nums">₺{formatTL(costStockShelf)}</span>
+              </li>
+              <li className="flex justify-between gap-2 text-gray-500">
+                <span>Stok tutma toplamı</span>
+                <span className="font-semibold tabular-nums">₺{formatTL(costStock)}</span>
+              </li>
+              <li className="flex justify-between gap-2">
+                <span>Rulo açılış (kurulum)</span>
+                <span className="font-semibold tabular-nums">₺{formatTL(costSetup)}</span>
+              </li>
+              {costSequence > 0 ? (
+                <li className="flex justify-between gap-2">
+                  <span>Sıra cezası</span>
+                  <span className="font-semibold tabular-nums">₺{formatTL(costSequence)}</span>
+                </li>
+              ) : null}
+            </ul>
+          ) : null}
         </div>
       </div>
       <div className="pointer-events-none absolute -right-4 -top-4 text-primary opacity-[0.03]">
@@ -157,8 +214,10 @@ function LatestRunFireCard(props: { tons: number; hasRun: boolean }) {
       </div>
       <div className="mt-auto flex flex-col gap-1">
         <div className="flex items-baseline gap-2">
-          <span className="text-3xl font-bold text-primary">{hasRun ? formatTon(tons) : '—'}</span>
-          {hasRun ? <span className="text-sm font-medium text-gray-500">ton</span> : null}
+          <span className="text-3xl font-bold text-primary">
+            {hasRun ? formatTonDisplayTr(tons) : '—'}
+          </span>
+          {hasRun ? <span className="text-sm font-medium text-gray-500">t</span> : null}
         </div>
         <p className="mt-2 text-xs text-gray-400">Son kayıtlı optimizasyon çıktısı</p>
       </div>
@@ -172,15 +231,17 @@ function LatestRunStockCard(props: { tons: number; hasRun: boolean }) {
   return (
     <div className="relative flex flex-col overflow-hidden rounded-xl border border-gray-100 bg-white p-6 shadow-sm transition-all hover:shadow-md">
       <div className="mb-6 flex items-start justify-between">
-        <h3 className="text-lg font-bold text-primary">Çözüm stoku</h3>
+        <h3 className="text-lg font-bold text-primary">Çözüm stoğu</h3>
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-accent-green shadow-sm">
           <span className="material-symbols-outlined text-[22px]">inventory_2</span>
         </div>
       </div>
       <div className="mt-auto flex flex-col gap-1">
         <div className="flex items-baseline gap-2">
-          <span className="text-3xl font-bold text-primary">{hasRun ? formatTon(tons) : '—'}</span>
-          {hasRun ? <span className="text-sm font-medium text-gray-500">ton</span> : null}
+          <span className="text-3xl font-bold text-primary">
+            {hasRun ? formatTonDisplayTr(tons) : '—'}
+          </span>
+          {hasRun ? <span className="text-sm font-medium text-gray-500">t</span> : null}
         </div>
         <p className="mt-2 text-xs text-gray-400">Optimizasyon sonrası özet stok</p>
       </div>
@@ -380,6 +441,12 @@ export function DashboardHomeView() {
   const fire = latestRun ? getRunSummaryTotalFire(latestRun) : 0;
   const stockSummary = latestRun ? getRunSummaryTotalStock(latestRun) : 0;
   const opened = latestRun ? getRunSummaryOpenedRolls(latestRun) : 0;
+  const costFire = latestRun ? getRunSummaryCostFireLira(latestRun) : 0;
+  const costStock = latestRun ? getRunSummaryCostStockLira(latestRun) : 0;
+  const costStockProduction = latestRun ? getRunSummaryCostStockProductionLira(latestRun) : 0;
+  const costStockShelf = latestRun ? getRunSummaryCostStockShelfLira(latestRun) : 0;
+  const costSetup = latestRun ? getRunSummaryCostSetupLira(latestRun) : 0;
+  const costSequence = latestRun ? getRunSummaryCostSequencePenaltyLira(latestRun) : 0;
   const hasRun = latestRun != null;
 
   const exportHref = latestFileId ? getReportDownloadUrl(latestFileId) : null;
@@ -422,7 +489,16 @@ export function DashboardHomeView() {
         <section aria-label="Son optimizasyon özeti">
           <h2 className="mb-4 text-xs font-bold uppercase tracking-wider text-slate-400">Son optimizasyon özeti</h2>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-            <LatestRunCostCard totalCost={cost} hasRun={hasRun} />
+            <LatestRunCostCard
+              totalCost={cost}
+              hasRun={hasRun}
+              costFire={costFire}
+              costStock={costStock}
+              costStockProduction={costStockProduction}
+              costStockShelf={costStockShelf}
+              costSetup={costSetup}
+              costSequence={costSequence}
+            />
             <LatestRunFireCard tons={fire} hasRun={hasRun} />
             <LatestRunStockCard tons={stockSummary} hasRun={hasRun} />
             <LatestRunRollsCard opened={opened} hasRun={hasRun} />

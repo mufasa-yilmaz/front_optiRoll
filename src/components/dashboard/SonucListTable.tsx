@@ -4,6 +4,12 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { deleteRun, getRuns, type RunSummary } from '@/lib/api';
+import {
+  getRunSummaryOpenedRolls,
+  getRunSummaryTotalCost,
+  getRunSummaryTotalFire,
+} from '@/lib/runSummaryFields';
+import { formatTonDisplayTr } from '@/components/dashboard/orders/helpers';
 
 const formatTL = (n: number) =>
   n.toLocaleString('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -37,31 +43,6 @@ function getRunStatusBadgeClass(run: RunSummary): string {
   if (status === 'processed') return 'bg-green-100 text-green-800';
   if (status === 'cancelled') return 'bg-amber-100 text-amber-800';
   return 'bg-slate-100 text-slate-700';
-}
-
-/** API bazen summary'i snake_case döndüğü için hem totalFire hem total_fire okuyor. */
-function getSummaryFire(run: RunSummary): number {
-  const s = run.summary as unknown as Record<string, unknown> | undefined;
-  if (!s) return 0;
-  const v = s.totalFire ?? s.total_fire;
-  return typeof v === 'number' && !Number.isNaN(v) ? v : 0;
-}
-
-/** Aynı şekilde totalCost / total_cost. */
-function getSummaryTotalCost(run: RunSummary): number {
-  const s = run.summary as unknown as Record<string, unknown> | undefined;
-  if (!s) return 0;
-  const v = s.totalCost ?? s.total_cost;
-  return typeof v === 'number' && !Number.isNaN(v) ? v : 0;
-}
-
-/** openedRolls / opened_rolls. */
-function getSummaryOpenedRolls(run: RunSummary): number | undefined {
-  const s = run.summary as unknown as Record<string, unknown> | undefined;
-  if (!s) return undefined;
-  const v = s.openedRolls ?? s.opened_rolls;
-  if (typeof v === 'number' && !Number.isNaN(v)) return v;
-  return undefined;
 }
 
 /** Durum filtresi seçenekleri */
@@ -220,12 +201,12 @@ export function SonucListTable() {
         return (da - db) * factor;
       }
       if (sortKey === 'totalCost') {
-        const ca = getSummaryTotalCost(a);
-        const cb = getSummaryTotalCost(b);
+        const ca = getRunSummaryTotalCost(a);
+        const cb = getRunSummaryTotalCost(b);
         return (ca - cb) * factor;
       }
-      const fa = getSummaryFire(a);
-      const fb = getSummaryFire(b);
+      const fa = getRunSummaryTotalFire(a);
+      const fb = getRunSummaryTotalFire(b);
       return (fa - fb) * factor;
     });
 
@@ -451,13 +432,13 @@ export function SonucListTable() {
                   {formatDate(run.created_at)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 text-right font-medium">
-                  ₺{formatTL(getSummaryTotalCost(run))}
+                  ₺{formatTL(getRunSummaryTotalCost(run))}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right tabular-nums">
+                  {formatTonDisplayTr(getRunSummaryTotalFire(run))} t
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right">
-                  {formatTL(getSummaryFire(run))} ton
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right">
-                  {getSummaryOpenedRolls(run) ?? '-'}
+                  {getRunSummaryOpenedRolls(run) ?? '-'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-center">
                   <div className="inline-flex items-center gap-3">
