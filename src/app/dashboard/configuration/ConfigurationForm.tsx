@@ -20,6 +20,7 @@ import {
   getStockRolls,
   getConfigurationById,
   ROLL_ORDER_UNLIMITED,
+  toastOptimizerError,
   type Order,
   type SyncLevel,
   type OptimizeRequest,
@@ -425,9 +426,9 @@ export function ConfigurationForm() {
       setLastResult({ ...result, inputData: request });
       router.push(`/dashboard/sonuc/${result.fileId}`);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Optimizasyon hatası';
-      toast.error(msg);
-      setError(msg);
+      const { title, description } = toastOptimizerError(err);
+      toast.error(title, description ? { description } : undefined);
+      setError(description ? `${title} — ${description}` : title);
     } finally {
       setLoading(false);
     }
@@ -669,6 +670,7 @@ export function ConfigurationForm() {
               hasRollsError={missingFields.includes('rolls')}
               blinkValidationKey={validationBlinkKey}
               showManualAdd={false}
+              rollsReadOnly
             />
           </section>
         </div>

@@ -20,6 +20,7 @@ import {
   getRun,
   getOrders,
   ROLL_ORDER_UNLIMITED,
+  toastOptimizerError,
   type SyncLevel,
   type OptimizeRequest,
   type Order,
@@ -341,9 +342,9 @@ export function ManualConfigurationForm() {
       setLastResult({ ...result, inputData: request });
       router.push(`/dashboard/sonuc/${result.fileId}`);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Optimizasyon hatası';
-      toast.error(msg);
-      setError(msg);
+      const { title, description } = toastOptimizerError(err);
+      toast.error(title, description ? { description } : undefined);
+      setError(description ? `${title} — ${description}` : title);
     } finally {
       setLoading(false);
     }
