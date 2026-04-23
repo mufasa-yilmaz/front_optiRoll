@@ -254,6 +254,47 @@ function bandShortLabelFromSlot(slot: { lane: SurfaceLane; ordinalInLane: number
   return slot.ordinalInLane === 1 ? 'Alt' : `Alt-${slot.ordinalInLane}`;
 }
 
+type PlanValidationSummary = {
+  orderGapM2MaxAbs: number;
+  stepVsPlanM2Abs: number;
+  hasPotentialDrift: boolean;
+};
+
+/**
+ * Kesim planı ve lineSchedule arasında m² kapanış farklarını özetler.
+ */
+function buildPlanValidationSummary(cuttingPlan: CuttingPlanItem[], lineSchedule: any[]): PlanValidationSummary {
+  const perOrderPlan = new Map<number, number>();
+  const perOrderStep = new Map<number, number>();
+  for (const row of cuttingPlan) {
+    const oid = Number(row.orderId);
+    const prev = perOrderPlan.get(oid) ?? 0;
+    perOrderPlan.set(oid, prev + Number(row.m2 || 0));
+  }
+  for (const step of lineSchedule) {
+    const cuts = Array.isArray(step?.cuts) ? step.cuts : [];
+    for (const cut of cuts) {
+      const oid = Number(cut?.orderId ?? 0);
+      const prev = perOrderStep.get(oid) ?? 0;
+      perOrderStep.set(oid, prev + Number(cut?.m2 ?? 0));
+    }
+  }
+  let orderGapM2MaxAbs = 0;
+  let stepVsPlanM2Abs = 0;
+  const allOrders = new Set<number>([
+    ...Array.from(perOrderPlan.keys()),
+    ...Array.from(perOrderStep.keys()),
+  ]);
+  for (const oid of Array.from(allOrders)) {
+    const p = perOrderPlan.get(oid) ?? 0;
+    const s = perOrderStep.get(oid) ?? 0;
+    orderGapM2MaxAbs = Math.max(orderGapM2MaxAbs, Math.abs(p - s));
+    stepVsPlanM2Abs += Math.abs(p - s);
+  }
+  const hasPotentialDrift = orderGapM2MaxAbs > 0.25 || stepVsPlanM2Abs > 0.5;
+  return { orderGapM2MaxAbs, stepVsPlanM2Abs, hasPotentialDrift };
+}
+
 /**
  * Üst veya alt satırdaki dilimler için toplam ton, m² ve panel.
  */
@@ -484,6 +525,10 @@ export function SolverOrderRollBreakdown() {
   const emphasizeCoatingLanes = surfaceFactor >= 2;
 
   const byOrder = useMemo(() => groupCuttingPlanByOrder(cuttingPlan), [cuttingPlan]);
+  const planValidationSummary = useMemo(
+    () => buildPlanValidationSummary(cuttingPlan, lineSchedule),
+    [cuttingPlan, lineSchedule],
+  );
 
   /** Sipariş başına üst/alt dilimler: önce model (upperTonnage/lowerTonnage), yoksa görsel denge yedeği. */
   const visualSurfacePartitionByOrder = useMemo(() => {
@@ -686,6 +731,17 @@ export function SolverOrderRollBreakdown() {
             <span>Adım: <strong>{lineTransitionsSummary.stepCount ?? lineSchedule.length}</strong></span>
           </div>
         ) : null}
+        <div className="mb-2 rounded-md border border-gray-200 bg-white px-3 py-2 text-[11px] text-gray-700">
+          <span className="mr-3">
+            Plan/Adım max kapanış farkı: <strong>{fmt(planValidationSummary.orderGapM2MaxAbs, 3)} m²</strong>
+          </span>
+          <span className="mr-3">
+            Toplam mutlak fark: <strong>{fmt(planValidationSummary.stepVsPlanM2Abs, 3)} m²</strong>
+          </span>
+          <span className={planValidationSummary.hasPotentialDrift ? 'text-rose-700 font-semibold' : 'text-emerald-700 font-semibold'}>
+            {planValidationSummary.hasPotentialDrift ? 'Olası sayısal sapma var' : 'Plan kapanışı tutarlı'}
+          </span>
+        </div>
         {lineSchedule.length > 0 ? (
           <div className="mb-3 overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
             <table className="w-full text-xs text-left">
