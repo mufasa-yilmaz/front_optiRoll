@@ -50,7 +50,7 @@ export interface CostsInput {
 /** Çok modlu optimizasyon strateji anahtarları. */
 export type OptimizationStrategyMode = 'az' | 'orta' | 'cok' | 'eszamanli';
 /** Üst/alt hat senkron seviyesi anahtarları. */
-export type SyncLevel = 'serbest' | 'dengeli' | 'siki';
+export type SyncLevel = 'serbest' | 'siki';
 
 export interface OptimizeRequest {
   material: MaterialInput;
@@ -165,6 +165,7 @@ export interface SyncComparisonItem {
   rollChangeCount?: number;
   synchronousChanges?: number;
   independentChanges?: number;
+  crossLaneTransfers?: number;
 }
 
 /** Hat üzerinde tek tak-çıkar/devam olayı. */
@@ -182,6 +183,7 @@ export interface LineTransitionsSummary {
   totalChanges: number;
   synchronousChanges: number;
   independentChanges: number;
+  crossLaneTransfers?: number;
   stepCount?: number;
 }
 

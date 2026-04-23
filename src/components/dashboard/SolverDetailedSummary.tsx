@@ -75,6 +75,8 @@ export function SolverDetailedSummary() {
   const totalPanels = cuttingPlan.reduce((s, c) => s + c.panelCount, 0);
   const totalM2 = cuttingPlan.reduce((s, c) => s + c.m2, 0);
   const uniqueRolls = new Set(cuttingPlan.map((c) => c.rollId)).size;
+  const selectedSyncLevel = (lastResult as { inputData?: { selectedSyncLevel?: string } } | null)?.inputData?.selectedSyncLevel;
+  const lineTransitions = lastResult?.lineTransitionsSummary;
 
   return (
     <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden flex flex-col">
@@ -101,6 +103,27 @@ export function SolverDetailedSummary() {
         <div className="relative z-10 grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Sol kolon */}
           <div className="lg:col-span-1 space-y-6">
+            {lastResult ? (
+              <div className="bg-white p-5 rounded-lg border border-gray-100 shadow-sm">
+                <h3 className="text-sm font-semibold text-gray-500 mb-3 uppercase tracking-wide">
+                  Çalıştırma Profili
+                </h3>
+                <ul className="space-y-2 text-sm text-gray-700">
+                  <li className="flex justify-between gap-2">
+                    <span>Senkron modu</span>
+                    <span className="font-semibold text-navy-custom">{selectedSyncLevel ?? '—'}</span>
+                  </li>
+                  <li className="flex justify-between gap-2">
+                    <span>Bağımsız değişim</span>
+                    <span className="font-semibold">{lineTransitions?.independentChanges ?? '—'}</span>
+                  </li>
+                  <li className="flex justify-between gap-2">
+                    <span>Çapraz hat transferi</span>
+                    <span className="font-semibold">{lineTransitions?.crossLaneTransfers ?? '—'}</span>
+                  </li>
+                </ul>
+              </div>
+            ) : null}
             <div className="bg-white p-5 rounded-lg border border-gray-100 shadow-sm">
               <h3 className="text-sm font-semibold text-gray-500 mb-4 uppercase tracking-wide">
                 Verimlilik Metrikleri

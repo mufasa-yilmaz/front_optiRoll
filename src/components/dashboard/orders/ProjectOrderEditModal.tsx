@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { calcWeightTon } from './helpers';
+import { calcWeightTon, validateOrderAreaDivisibility } from './helpers';
 import type { NewOrderForm, OrderPipelineRow } from './types';
 
 export interface ProjectOrderEditModalProps {
@@ -69,6 +69,13 @@ export function ProjectOrderEditModal({
     const widthM = Math.max(0.01, Number(form.widthM) || 1);
     const panelLengthM = Math.max(0.01, Number(form.panelLengthM) || 1);
     const thicknessMm = Math.max(0.1, Number(form.thicknessMm) || 0.75);
+    const divisibility = validateOrderAreaDivisibility(m2, widthM, panelLengthM);
+    if (!divisibility.isValid) {
+      toast.error(
+        `Talep m² değeri panel alanına tam bölünmelidir. En yakın değerler: ${divisibility.floorM2} m² veya ${divisibility.ceilM2} m².`,
+      );
+      return;
+    }
     const widthMm = Math.round(widthM * 1000);
     const lengthM = widthM > 0 ? Number((m2 / widthM).toFixed(4)) : 1;
     const weightTon = Number(calcWeightTon(m2, thicknessMm, form.material).toFixed(4));

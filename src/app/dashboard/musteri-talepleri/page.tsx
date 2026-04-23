@@ -11,6 +11,7 @@ import {
   type CustomerRequest,
 } from '@/lib/api';
 import { OrderCreateModal, type OrderFormData } from '@/components/dashboard/orders';
+import { validateOrderAreaDivisibility } from '@/components/dashboard/orders/helpers';
 import { DashboardPageHeader } from '@/components/dashboard/DashboardPageHeader';
 
 const emptyForm: OrderFormData = {
@@ -265,6 +266,13 @@ export default function MusteriTalepleriPage() {
     }
     if (form.m2 <= 0 || form.panel_width <= 0 || form.panel_length <= 0) {
       toast.error('m² ve panel ölçüleri geçerli olmalıdır');
+      return;
+    }
+    const divisibility = validateOrderAreaDivisibility(form.m2, form.panel_width, form.panel_length);
+    if (!divisibility.isValid) {
+      toast.error(
+        `Talep m² değeri panel alanına tam bölünmelidir. En yakın değerler: ${divisibility.floorM2} m² veya ${divisibility.ceilM2} m².`,
+      );
       return;
     }
     try {

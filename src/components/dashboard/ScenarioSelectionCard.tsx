@@ -26,8 +26,7 @@ export interface ScenarioSelectionCardProps {
 /** UI'da listelenecek senkron seviye seçeneklerini sabitler. */
 const SYNC_LEVEL_OPTIONS: { id: SyncLevel; label: string; desc: string }[] = [
   { id: 'serbest', label: 'Serbest', desc: 'Üst/alt bağımsız değişebilir.' },
-  { id: 'dengeli', label: 'Dengeli', desc: 'Bağımsız değişim cezalı, kontrollü ayrışma.' },
-  { id: 'siki', label: 'Sıkı', desc: 'Üst/alt değişimler eşzamanlı zorlanır.' },
+  { id: 'siki', label: 'Sıkı', desc: 'Üst/alt eşzamanlı değişim güçlüce zorlanır; çapraz taşıma cezalıdır.' },
 ];
 
 /** Verilen değerin "sonsuz" olarak kabul edilip edilmediğini döner. */
@@ -77,7 +76,7 @@ export function ScenarioSelectionCard({
               <label className="block text-xs font-semibold text-slate-700 mb-2">
                 Hat senkron seviyesi (en az 1 seçim zorunlu)
               </label>
-              <div className="grid gap-2 sm:grid-cols-3">
+              <div className="grid gap-2 sm:grid-cols-2">
                 {SYNC_LEVEL_OPTIONS.map((opt) => {
                   const checked = selectedSyncLevels.includes(opt.id);
                   return (

@@ -138,7 +138,6 @@ function strategyLabel(mode: string): string {
 /** Senkron seviye adını kullanıcıya okunur etiketle gösterir. */
 function syncLevelLabel(level: string): string {
   if (level === 'serbest') return 'Serbest';
-  if (level === 'dengeli') return 'Dengeli';
   if (level === 'siki') return 'Sıkı';
   return level;
 }
@@ -510,9 +509,12 @@ export function SolverOrderRollBreakdown() {
     () => result?.cuttingPlan ?? [],
     [result?.cuttingPlan],
   );
+  const lineSchedule = useMemo(
+    () => result?.lineSchedule ?? [],
+    [result?.lineSchedule],
+  );
   const modeComparisons = result?.modeComparisons ?? [];
   const syncComparisons = result?.syncComparisons ?? [];
-  const lineSchedule = result?.lineSchedule ?? [];
   const lineTransitionsSummary = result?.lineTransitionsSummary;
   const selectedModesCount = result?.selectedModesCount ?? result?.selectedModes?.length ?? 0;
   const showComparison = (result?.comparisonEnabled ?? false) || selectedModesCount > 1;
@@ -695,6 +697,7 @@ export function SolverOrderRollBreakdown() {
                   <th className="px-3 py-2 font-semibold text-right">Degisim</th>
                   <th className="px-3 py-2 font-semibold text-right">Eszamanli</th>
                   <th className="px-3 py-2 font-semibold text-right">Bagimsiz</th>
+                  <th className="px-3 py-2 font-semibold text-right">Capraz</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -707,6 +710,7 @@ export function SolverOrderRollBreakdown() {
                     <td className="px-3 py-2.5 text-right">{item.rollChangeCount ?? '—'}</td>
                     <td className="px-3 py-2.5 text-right">{item.synchronousChanges ?? '—'}</td>
                     <td className="px-3 py-2.5 text-right">{item.independentChanges ?? '—'}</td>
+                    <td className="px-3 py-2.5 text-right">{item.crossLaneTransfers ?? '—'}</td>
                   </tr>
                 ))}
               </tbody>

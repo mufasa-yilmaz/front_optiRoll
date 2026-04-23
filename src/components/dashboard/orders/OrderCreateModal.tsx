@@ -1,6 +1,7 @@
 'use client';
 
 import type { Order } from '@/lib/api';
+import { validateOrderAreaDivisibility } from './helpers';
 
 export interface OrderFormData {
   order_id: string;
@@ -42,6 +43,7 @@ export function OrderCreateModal({
   submitLabel,
 }: OrderCreateModalProps) {
   if (!isOpen) return null;
+  const divisibility = validateOrderAreaDivisibility(form.m2, form.panel_width, form.panel_length);
 
   const headerTitle =
     titleOverride ?? (isEdit ? 'Siparişi Düzenle' : 'Yeni Sipariş Ekle');
@@ -107,6 +109,11 @@ export function OrderCreateModal({
               className="w-full rounded-lg border border-slate-300 bg-slate-50 px-4 py-2.5"
             />
           </div>
+          {!divisibility.isValid && (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              Girilen m², panel alanına tam bölünmüyor. En yakın değerler: {divisibility.floorM2} m² veya {divisibility.ceilM2} m².
+            </p>
+          )}
           <div>
             <label className="mb-1.5 block text-sm font-semibold text-slate-700">İl (opsiyonel)</label>
             <input

@@ -41,7 +41,7 @@ function waitMs(durationMs: number): Promise<void> {
 }
 
 /**
- * Tahmini tonaj ihtiyacini panel adet yuvarlamasi ve yuzey carpaniyla hesaplar.
+ * Tahmini tonaj ihtiyacini doğrudan m² ve yüzey çarpanıyla hesaplar.
  */
 function estimateNeedTon(
   orders: { m2: number; panelWidth: number; panelLength?: number }[],
@@ -55,8 +55,7 @@ function estimateNeedTon(
     const pw = order.panelWidth;
     const pl = order.panelLength ?? 1;
     if (pw <= 0 || pl <= 0 || order.m2 <= 0) return sum;
-    const panelCount = Math.max(1, Math.round(order.m2 / (pw * pl)));
-    const effectiveM2 = panelCount * pw * pl * Math.max(1, surfaceFactor);
+    const effectiveM2 = order.m2 * Math.max(1, surfaceFactor);
     return sum + effectiveM2 * (thicknessMm / 1000) * densityGcm3;
   }, 0);
   return baseTon * (1 + safetyStockPercent / 100);

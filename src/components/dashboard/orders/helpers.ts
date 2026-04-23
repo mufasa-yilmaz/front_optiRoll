@@ -21,7 +21,7 @@ export const DEFAULT_ORDER_TABLE_MATERIAL = {
 } as const;
 
 /**
- * Tek sipariş için talep tonajını hesaplar: tam sayı panel yuvarlaması, yüzey çarpanı,
+ * Tek sipariş için talep tonajını hesaplar: m² hedefi doğrudan alınır, yüzey çarpanı uygulanır,
  * ardından hacim × yoğunluk (güvenlik stoğu dahil değil; backend calculate_demand ile uyumlu).
  */
 export function estimateOrderDemandTon(
@@ -35,9 +35,51 @@ export function estimateOrderDemandTon(
   const pl = Number(order.panel_length ?? 1);
   const m2 = Number(order.m2);
   if (pw <= 0 || pl <= 0 || m2 <= 0 || thicknessMm <= 0 || densityKgM3 <= 0) return 0;
-  const panelCount = Math.max(1, Math.round(m2 / (pw * pl)));
-  const effectiveM2 = panelCount * pw * pl * Math.max(1, surfaceFactor);
+  const effectiveM2 = m2 * Math.max(1, surfaceFactor);
   return effectiveM2 * (thicknessMm / 1000) * densityGcm3;
+}
+
+export type OrderAreaDivisibilityCheck = {
+  isValid: boolean;
+  panelAreaM2: number;
+  panelCountExact: number;
+  floorM2: number;
+  ceilM2: number;
+};
+
+/**
+ * Sipariş m² değerinin panel alanına tam bölünüp bölünmediğini doğrular.
+ */
+export function validateOrderAreaDivisibility(
+  m2: number,
+  panelWidthM: number,
+  panelLengthM: number,
+): OrderAreaDivisibilityCheck {
+  const m2Safe = Number(m2);
+  const widthSafe = Number(panelWidthM);
+  const lengthSafe = Number(panelLengthM);
+  if (m2Safe <= 0 || widthSafe <= 0 || lengthSafe <= 0) {
+    return {
+      isValid: true,
+      panelAreaM2: 0,
+      panelCountExact: 0,
+      floorM2: 0,
+      ceilM2: 0,
+    };
+  }
+  const panelAreaM2 = widthSafe * lengthSafe;
+  const panelCountExact = m2Safe / panelAreaM2;
+  const nearestInt = Math.round(panelCountExact);
+  const isValid = Math.abs(panelCountExact - nearestInt) < 1e-9;
+  const floorPanels = Math.floor(panelCountExact);
+  const ceilPanels = Math.ceil(panelCountExact);
+  return {
+    isValid,
+    panelAreaM2,
+    panelCountExact,
+    floorM2: Number((floorPanels * panelAreaM2).toFixed(6)),
+    ceilM2: Number((ceilPanels * panelAreaM2).toFixed(6)),
+  };
 }
 
 /**

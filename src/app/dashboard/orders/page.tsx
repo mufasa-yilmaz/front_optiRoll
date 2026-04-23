@@ -13,6 +13,7 @@ import {
 import type { OrderFormData } from '@/components/dashboard/orders';
 import type { OrderImportRow } from '@/lib/orderImport';
 import { DEFAULT_ORDER_TABLE_MATERIAL, sumOrdersEstimatedDemandTon } from '@/components/dashboard/orders/helpers';
+import { validateOrderAreaDivisibility } from '@/components/dashboard/orders/helpers';
 
 const emptyForm: OrderFormData = {
   order_id: '',
@@ -86,6 +87,13 @@ export default function OrdersPage() {
       toast.error('Talep (m²), genişlik ve kesim uzunluğu 0\'dan büyük olmalıdır.');
       return;
     }
+    const divisibility = validateOrderAreaDivisibility(form.m2, form.panel_width, form.panel_length);
+    if (!divisibility.isValid) {
+      toast.error(
+        `Talep m² değeri panel alanına tam bölünmelidir. Bu ölçülerle en yakın değerler: ${divisibility.floorM2} m² veya ${divisibility.ceilM2} m².`,
+      );
+      return;
+    }
     try {
       await saveOrder({
         id: editingOrder?.id,
@@ -125,6 +133,12 @@ export default function OrdersPage() {
     let added = 0;
     try {
       for (const r of rows) {
+        const divisibility = validateOrderAreaDivisibility(r.m2, r.panel_width, r.panel_length);
+        if (!divisibility.isValid) {
+          throw new Error(
+            `İçe aktarılan "${r.order_id}" siparişinde m² panel alanına tam bölünmüyor. En yakın değerler: ${divisibility.floorM2} m² / ${divisibility.ceilM2} m².`,
+          );
+        }
         await saveOrder({
           order_id: r.order_id,
           m2: r.m2,
