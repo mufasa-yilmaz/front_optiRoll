@@ -25,6 +25,7 @@ import {
   type SyncLevel,
   type OptimizeRequest,
 } from '@/lib/api';
+import { validateOrderAreaDivisibility } from '@/components/dashboard/orders/helpers';
 import { useOptimization } from '@/contexts/OptimizationContext';
 
 /** Başlangıçta sipariş listesi boş - kullanıcı ekleyecek */
@@ -183,6 +184,18 @@ export function ConfigurationForm() {
   }, [orders]);
 
   /**
+   * Panel alanına tam bölünmeyen siparişleri döner.
+   */
+  const getDivisibilityInvalidOrders = useCallback(() => {
+    return orders
+      .map((o) => ({
+        order: o,
+        check: validateOrderAreaDivisibility(o.m2, o.panelWidth, o.panelLength ?? 1),
+      }))
+      .filter((x) => !x.check.isValid);
+  }, [orders]);
+
+  /**
    * Konfigürasyon formu için zorunlu alanları kontrol eder, eksik/uygunsuz olanları döner.
    */
   const validateRequiredFields = useCallback((): ConfigurationMissingFieldKey[] => {
@@ -203,6 +216,7 @@ export function ConfigurationForm() {
     if (selectedSyncLevels.length === 0) missing.push('syncSelection');
     const validOrders = getValidOrders();
     if (validOrders.length === 0) missing.push('orders');
+    if (getDivisibilityInvalidOrders().length > 0) missing.push('orders');
     if (rolls.length === 0 || rolls.some((r) => r <= 0)) missing.push('rolls');
     return missing;
   }, [
@@ -213,6 +227,7 @@ export function ConfigurationForm() {
     stockCost,
     rolls,
     getValidOrders,
+    getDivisibilityInvalidOrders,
     runDescription,
     selectedSyncLevels,
   ]);
@@ -405,6 +420,15 @@ export function ConfigurationForm() {
     }
 
     const validOrders = getValidOrders();
+    const invalidOrders = getDivisibilityInvalidOrders();
+    if (invalidOrders.length > 0) {
+      const first = invalidOrders[0];
+      toast.error(
+        `Sipariş #${first.order.id} için m² panel alanına tam bölünmüyor. En yakın değerler: ${first.check.floorM2} m² veya ${first.check.ceilM2} m².`,
+      );
+      scrollToSection('orders');
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -433,6 +457,7 @@ export function ConfigurationForm() {
     }
   }, [
     getValidOrders,
+    getDivisibilityInvalidOrders,
     buildOptimizeRequest,
     setLastResult,
     setLoading,

@@ -25,6 +25,7 @@ import {
   type OptimizeRequest,
   type Order,
 } from '@/lib/api';
+import { validateOrderAreaDivisibility } from '@/components/dashboard/orders/helpers';
 import { useOptimization } from '@/contexts/OptimizationContext';
 
 /** Başlangıçta boş veya tek örnek sipariş - kullanıcı ekleyecek (manuel test modu). */
@@ -117,6 +118,18 @@ export function ManualConfigurationForm() {
    */
   const getValidOrders = useCallback(() => {
     return orders.filter((o) => o.m2 > 0 && o.panelWidth > 0 && (o.panelLength ?? 1) > 0);
+  }, [orders]);
+
+  /**
+   * Panel alanına tam bölünmeyen siparişleri döner (manuel analiz sayfası).
+   */
+  const getDivisibilityInvalidOrders = useCallback(() => {
+    return orders
+      .map((o) => ({
+        order: o,
+        check: validateOrderAreaDivisibility(o.m2, o.panelWidth, o.panelLength ?? 1),
+      }))
+      .filter((x) => !x.check.isValid);
   }, [orders]);
 
   /**
@@ -300,6 +313,15 @@ export function ManualConfigurationForm() {
       scrollToSection('orders');
       return;
     }
+    const invalidOrders = getDivisibilityInvalidOrders();
+    if (invalidOrders.length > 0) {
+      const first = invalidOrders[0];
+      toast.error(
+        `Sipariş #${first.order.id} için m² panel alanına tam bölünmüyor. En yakın değerler: ${first.check.floorM2} m² veya ${first.check.ceilM2} m².`,
+      );
+      scrollToSection('orders');
+      return;
+    }
     const maxOrdersValid = maxOrdersPerRoll != null && (maxOrdersPerRoll === ROLL_ORDER_UNLIMITED || maxOrdersPerRoll > 0);
     if (!maxOrdersValid) {
       toast.error('"1 ruloda maksimum kaç farklı sipariş?" alanı zorunludur. Bir sayı girin veya Sonsuz seçin.');
@@ -350,6 +372,7 @@ export function ManualConfigurationForm() {
   }, [
     orders,
     getValidOrders,
+    getDivisibilityInvalidOrders,
     buildOptimizeRequest,
     setLastResult,
     setLoading,
